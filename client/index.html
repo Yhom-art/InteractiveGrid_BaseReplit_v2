@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        background-color: #F0F0F0;
+      }
+      
+      #root {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+      }
+      
+      /* Base normale pour tous les contenus */
+      #root {
+        min-height: 100vh;
+      }
+      
+      /* App principale - grille interactive avec viewport fixe */
+      .with-interactive-grid {
+        overflow: hidden;
+        position: fixed;
+        inset: 0;
+        cursor: url(/@fs/home/runner/workspace/attached_assets/Yhom_PictosMarket/cursor-panel2.svg), auto;
+      }
+      
+      /* Admin unifié - curseurs personnalisés mais scroll préservé */
+      .admin-with-cursors {
+        cursor: url(/@fs/home/runner/workspace/attached_assets/Yhom_PictosMarket/cursor-panel2.svg), auto;
+        min-height: 100vh;
+        overflow-y: auto;
+      }
+      
+      /* Pages admin classiques */
+      .admin-page {
+        overflow-y: auto;
+        padding: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
+    <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+  </body>
+</html>
