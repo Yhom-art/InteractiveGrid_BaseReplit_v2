@@ -1,0 +1,43 @@
+/* Styles spécifiques pour les pages d'administration */
+
+/* Force l'affichage des ascenseurs dans les pages admin */
+.admin-layout {
+  width: 100% !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.admin-content {
+  height: auto !important;
+  overflow-y: scroll !important;
+  overflow-x: auto !important;
+  max-height: none !important;
+}
+
+/* Override des styles globaux qui masquent les ascenseurs */
+html.admin-page, 
+body.admin-page, 
+#root.admin-page {
+  overflow: auto !important;
+  height: auto !important;
+  min-height: 100vh !important;
+}
+
+/* Style pour rendre les formulaires longs plus lisibles */
+.admin-form {
+  max-width: 100% !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+}
+
+/* Ensure all containers have proper overflow */
+.admin-container {
+  overflow: visible !important;
+  height: auto !important;
+}
+
+/* Force le défilement sur la page d'édition des chimères */
+.chimera-edit-page {
+  overflow-y: scroll !important;
+  padding-bottom: 100px !important;
+}
