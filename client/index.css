@@ -1,0 +1,1326 @@
+/* Import Source Code Pro avec toutes les graisses */
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Doto:wght@100;200;300;400;500;600;700;800;900&display=swap');
+/* Fonte pour les interfaces d'administration */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+/* Import Admin Unified Styles */
+@import './styles/admin-unified.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Classe pour les pages d'administration - Interface statique */
+.admin-interface {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.admin-interface h1,
+.admin-interface h2,
+.admin-interface h3,
+.admin-interface h4,
+.admin-interface h5,
+.admin-interface h6 {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.admin-interface .admin-title {
+  font-weight: 200;
+  font-size: 2.5rem;
+  letter-spacing: -0.02em;
+}
+
+/* Style spécifique pour le titre du header template - Force le ultra-light */
+.admin-header-title {
+  font-weight: 200 !important;
+  font-size: 3rem !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Classe pour le menu de retour */
+.admin-back-menu {
+  font-family: 'Roboto Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+/* Éléments administrables en Roboto Mono */
+.admin-programmatic {
+  font-family: 'Roboto Mono', 'Consolas', 'Monaco', monospace;
+  font-weight: 400;
+}
+
+/* Menus déroulants administrables */
+.admin-select {
+  font-family: 'Roboto Mono', 'Consolas', 'Monaco', monospace;
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+/* Noms de règles administrables */
+.admin-rule-name {
+  font-family: 'Roboto Mono', 'Consolas', 'Monaco', monospace;
+  font-weight: 500;
+}
+
+.admin-interface .admin-h2 {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  letter-spacing: -0.025em;
+}
+
+.admin-interface .admin-h3 {
+  font-weight: 500;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.admin-interface button {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 500;
+}
+
+.admin-interface input,
+.admin-interface textarea,
+.admin-interface select {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Classes pour contenu programmatique - Monospace pour identifier l'automatisation */
+.programmatic-content,
+.tag,
+.dynamic-value,
+.code-display,
+.auto-generated,
+.data-field {
+  font-family: 'Roboto Mono', 'Consolas', 'Monaco', monospace !important;
+  font-weight: 400;
+}
+
+.programmatic-content.bold,
+.tag.bold,
+.dynamic-value.bold {
+  font-weight: 500;
+}
+
+/* Classe spécifique pour les tags/badges */
+.programmatic-tag {
+  font-family: 'Roboto Mono', 'Consolas', 'Monaco', monospace;
+  font-weight: 500;
+  font-size: 0.625rem;
+  letter-spacing: 0.025em;
+}
+
+/* Classe pour les titres de règles */
+.rule-title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+:root {
+      --background: 0 0% 100%;
+--foreground: 20 14.3% 4.1%;
+--muted: 60 4.8% 95.9%;
+--muted-foreground: 25 5.3% 44.7%;
+--popover: 0 0% 100%;
+--popover-foreground: 20 14.3% 4.1%;
+--card: 0 0% 100%;
+--card-foreground: 20 14.3% 4.1%;
+--border: 20 5.9% 90%;
+--input: 20 5.9% 90%;
+--primary: 207 90% 54%;
+--primary-foreground: 211 100% 99%;
+--secondary: 60 4.8% 95.9%;
+--secondary-foreground: 24 9.8% 10%;
+--accent: 60 4.8% 95.9%;
+--accent-foreground: 24 9.8% 10%;
+--destructive: 0 84.2% 60.2%;
+--destructive-foreground: 60 9.1% 97.8%;
+--ring: 20 14.3% 4.1%;
+--radius: 0.5rem;
+  }
+  .dark {
+      --background: 240 10% 3.9%;
+--foreground: 0 0% 98%;
+--muted: 240 3.7% 15.9%;
+--muted-foreground: 240 5% 64.9%;
+--popover: 240 10% 3.9%;
+--popover-foreground: 0 0% 98%;
+--card: 240 10% 3.9%;
+--card-foreground: 0 0% 98%;
+--border: 240 3.7% 15.9%;
+--input: 240 3.7% 15.9%;
+--primary: 207 90% 54%;
+--primary-foreground: 211 100% 99%;
+--secondary: 240 3.7% 15.9%;
+--secondary-foreground: 0 0% 98%;
+--accent: 240 3.7% 15.9%;
+--accent-foreground: 0 0% 98%;
+--destructive: 0 62.8% 30.6%;
+--destructive-foreground: 0 0% 98%;
+--ring: 240 4.9% 83.9%;
+--radius: 0.5rem;
+  }
+
+@layer base {
+  * {
+    @apply border-border;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body {
+    @apply font-sans antialiased;
+    margin: 0;
+    padding: 0;
+    background-color: #F0F0F0;
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  #root {
+    width: 100%;
+    min-height: 100vh;
+  }
+}
+
+/* Custom styles for grid application */
+.source-code {
+  font-family: 'Roboto Mono', monospace;
+}
+
+/* Grid layout styles */
+.grid-cell {
+  position: absolute;
+  transition: height 0.3s ease, transform 0.3s ease;
+}
+
+/* Override pour fond global de la grille */
+html, body, #root {
+  background-color: #F0F0F0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-family: 'Roboto', sans-serif;
+  font-weight: normal;
+  min-height: 100vh !important;
+}
+
+/* Style pour la zone principale de contenu admin - FORCER les ascenseurs */
+.admin-scrollable-content {
+  height: auto;
+  overflow-y: scroll !important; /* Force l'affichage permanent de l'ascenseur vertical */
+  overflow-x: auto;
+  cursor: none; /* Pas de curseur système pour utiliser les curseurs personnalisés */
+  -webkit-overflow-scrolling: touch; /* Défilement fluide sur iOS */
+}
+
+/* Style des barres de défilement pour macOS */
+::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 8px;
+  border: 3px solid #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Mode admin avec scrolling */
+.admin-content {
+  height: auto !important;
+  min-height: 100vh !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+/* Zone de test pour l'aperçu live des curseurs admin */
+.cursor-test-wrapper {
+  position: relative !important;
+  z-index: 10000001 !important;
+}
+
+/* Mode CD (Curseur Dynamique) - Force l'override complet */
+.cursor-test-wrapper {
+  cursor: inherit !important;
+}
+
+.cursor-test-wrapper,
+.cursor-test-wrapper *,
+.cursor-test-wrapper svg,
+.cursor-test-wrapper div {
+  cursor: inherit !important;
+  pointer-events: auto !important;
+}
+
+/* Désactive le système de curseur admin sur cette zone */
+.cursor-test-wrapper:hover {
+  cursor: inherit !important;
+}
+
+/* Mode CD actif - Désactive complètement AdminCursor et force le curseur personnalisé */
+body.cursor-test-active .cursor-v2-container {
+  display: none !important;
+}
+
+body.cursor-test-active,
+body.cursor-test-active *,
+body.cursor-test-active .cursor-test-wrapper,
+body.cursor-test-active .cursor-test-wrapper * {
+  cursor: inherit !important;
+}
+
+/* Force brutale pour le mode CD */
+body.cursor-test-active {
+  cursor: inherit !important;
+}
+
+/* Override absolu pour la zone de test */
+.cursor-test-wrapper.cd-active {
+  cursor: inherit !important;
+}
+
+.cursor-test-wrapper.cd-active * {
+  cursor: inherit !important;
+}
+
+/* Curseur V2 - Désactivation complète des effets CSS */
+.cursor-v2-container {
+  transition: none !important;
+  animation: none !important;
+  transform: translate(-50%, -50%) !important;
+  will-change: auto !important;
+  pointer-events: none !important;
+}
+
+.cursor-v2-image {
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
+  will-change: auto !important;
+  width: 32px !important;
+  height: 32px !important;
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
+}
+
+/* Main content area for admin pages */
+.admin-layout {
+  height: auto !important;
+  overflow: visible !important;
+}
+
+/* Conteneur pour la grille en fullpage - SEULEMENT pour la page principale */
+.grid-container {
+  width: 100vw;
+  height: 100vh;
+  overflow: auto;
+  background-color: #F0F0F0;
+  padding: 0;
+  margin: 0;
+  position: relative;
+}
+
+/* Conteneur fullscreen SEULEMENT pour GridMap principal */
+.grid-container.fullscreen-mode {
+  overflow: hidden;
+}
+
+/* Layer styles */
+.layer-pic {
+  z-index: 100;
+}
+
+.layer-txt {
+  z-index: 200;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  color: white;
+}
+
+.layer-card {
+  z-index: 300;
+  /* Tous les styles visuels supprimés */
+}
+
+.layer-overlay {
+  z-index: 30; /* Réduit pour laisser les zones de clic au-dessus */
+  background-color: transparent;
+  opacity: 1;
+}
+
+/* Fix pour le mix-blend-mode qui ne fonctionne pas en inline style */
+.mix-blend-hard-light {
+  mix-blend-mode: hard-light !important;
+}
+
+.layer-overlay-free {
+  z-index: 30; /* Réduit pour laisser les zones de clic au-dessus */
+  background-color: transparent;
+  mix-blend-mode: normal;
+}
+
+/* Style spécifique pour le layer-overlay en état ouvert */
+[data-container-state="free"] .layer-overlay-free {
+  background-color: transparent;
+  mix-blend-mode: normal;
+}
+
+.layer-overlay-adopt {
+  z-index: 30; /* Réduit pour laisser les zones de clic au-dessus */
+  background-color: transparent;
+  opacity: 1;
+}
+
+/* ANIMATIONS DE ZOOM DÉSACTIVÉES - Causaient des effets indésirables dans les angles */
+/* Toutes les animations zoom-in, zoom-out, zoom-sequence supprimées */
+
+.zoom-effect {
+  /* Désactivation complète des effets de zoom */
+  transform: none !important;
+  transition: none !important;
+  animation: none !important;
+  will-change: auto !important;
+}
+
+.zoom-in,
+.zoom-out {
+  /* Désactivation des classes d'animation */
+  animation: none !important;
+  transform: none !important;
+}
+
+.nft-image {
+  transform: none !important;
+  z-index: 1;
+  animation: none !important;
+}
+
+.nft-image.zoom-active {
+  z-index: 2;
+  /* Désactivation de l'animation de séquence */
+  animation: none !important;
+  transform: none !important;
+}
+
+/* Effet "échelle humaine" DÉSACTIVÉ - Causait des problèmes visuels */
+.panel-image-scalable:hover {
+  /* Tous les effets de zoom supprimés */
+}
+
+/* Animation pour le point d'interrogation clignotant */
+.blinking-question {
+  animation: blink-question 2s step-end infinite;
+}
+
+@keyframes blink-question {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Animations pour curseur SCALE_TIMER */
+@keyframes scaleHeartbeat {
+  0%, 100% { 
+    transform: scale(1);
+  }
+  15% { 
+    transform: scale(1.25);
+  }
+  30% { 
+    transform: scale(1);
+  }
+  45% { 
+    transform: scale(1.35);
+  }
+  60% { 
+    transform: scale(1);
+  }
+}
+
+@keyframes scaleOrganicFloat {
+  0% { 
+    transform: translate(-95px, -25px);
+  }
+  5% { 
+    transform: translate(-95px, -25px); /* Pause courte */
+  }
+  12% { 
+    transform: translate(-45px, -75px);
+  }
+  18% { 
+    transform: translate(15px, -80px);
+  }
+  22% { 
+    transform: translate(15px, -80px); /* Pause */
+  }
+  30% { 
+    transform: translate(125px, -35px);
+  }
+  38% { 
+    transform: translate(70px, -5px);
+  }
+  42% { 
+    transform: translate(70px, -5px); /* Pause */
+  }
+  50% { 
+    transform: translate(-15px, -45px);
+  }
+  58% { 
+    transform: translate(-65px, -85px);
+  }
+  62% { 
+    transform: translate(-65px, -85px); /* Pause longue */
+  }
+  70% { 
+    transform: translate(-115px, -55px);
+  }
+  78% { 
+    transform: translate(-85px, -10px);
+  }
+  85% { 
+    transform: translate(45px, -70px);
+  }
+  90% { 
+    transform: translate(45px, -70px); /* Pause */
+  }
+  100% { 
+    transform: translate(-95px, -25px);
+  }
+}
+
+/* Animation du nom pour les containers ADOPTED */
+.name-reveal {
+  letter-spacing: 0;
+  color: black;
+  font-weight: bold;
+  font-size: 13px;
+  font-family: 'Roboto Mono', monospace;
+  text-align: center;
+  text-transform: uppercase;
+  will-change: opacity, letter-spacing;
+  pointer-events: none;
+  display: block;
+  width: 100%;
+  /* Au repos, le texte doit être invisible */
+  opacity: 0;
+}
+
+.name-reveal.name-reveal-active {
+  animation: name-reveal-animation 5s forwards;
+}
+
+@keyframes name-reveal-animation {
+  /* Phase 1: Déploiement rapide de l'interlettrage (0-1s) */
+  0% { 
+    opacity: 0; 
+    letter-spacing: 0;
+  }
+  20% { 
+    opacity: 1; 
+    letter-spacing: 3px;
+  }
+  /* Phase 2: Maintien de l'interlettrage maximal (1-2s) */
+  40% { 
+    opacity: 1; 
+    letter-spacing: 3px;
+  }
+  /* Phase 3: Retour progressif à l'interlettrage normal (2-4s) */
+  80% { 
+    opacity: 1; 
+    letter-spacing: 0;
+  }
+  /* Phase 4: Fade-out final (4-5s) */
+  100% { 
+    opacity: 0; 
+    letter-spacing: 0;
+  }
+}
+
+/* Transition globale pour tous les containers */
+.container {
+  transition: height 0.5s ease-in-out;
+  overflow: hidden;
+}
+
+/* Définir le comportement de transition pour les éléments internes */
+.layer-pic, .layer-card, .layer-overlay {
+  transition: all 0.5s ease-in-out;
+}
+
+/* Animation de typewriting pour le texte FREE */
+@keyframes erase-text {
+  0% { width: 100%; }
+  100% { width: 0; }
+}
+
+@keyframes typewriter-line1 {
+  0% { width: 0; }
+  100% { width: 100%; }
+}
+
+@keyframes typewriter-line2 {
+  0% { width: 0; }
+  100% { width: 100%; }
+}
+
+@keyframes blink-cursor {
+  from, to { border-right-color: transparent; }
+  50% { border-right-color: white; }
+}
+
+/* Animations de fondu pour les transitions */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Animation de pulsation pour l'icône zoom en mode "Off" */
+@keyframes zoomIconPulse {
+  0% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  100% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+}
+
+/* Animation pour l'effacement du texte "FREE" */
+.erase-text {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 4ch; /* Largeur fixe pour "FREE" */
+  animation: erase-text 0.8s steps(4, end) 1 forwards;
+  border-right: 2px solid white;
+  opacity: 1;
+  position: relative;
+}
+
+/* Style pour l'animation du curseur pour notre nouveau TypewriterAnimation */
+.text-with-cursor {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  animation: blink-cursor 0.8s step-end infinite;
+}
+
+/* Styles pour la fermeture des containers */
+.container-closing {
+  transition: none !important; /* Désactive toutes les transitions lors de la fermeture */
+}
+
+.container-closing img.zoom-effect {
+  transition: none !important;
+  animation: none !important;
+  transform: scale(1) !important; /* Force l'échelle à 1 immédiatement */
+  position: fixed !important;
+  z-index: 500 !important;
+}
+
+/* Classe pour désactiver temporairement les animations durant les transitions */
+.no-animations * {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Animation typewriter pour CATCH ME IF YOU CARE */
+@keyframes typewriter {
+  0% { width: 0; }
+  100% { width: 100%; }
+}
+
+@keyframes blink-cursor {
+  0%, 50% { border-right: 2px solid #FF26BE; }
+  51%, 100% { border-right: 2px solid transparent; }
+}
+
+/* Styles pour le curseur polymorphe */
+.custom-cursor-area {
+  cursor: none !important;
+}
+
+/* Animation de bump et rotation pour le curseur KNOK - Version amplifiée */
+@keyframes knok-bump-rotate {
+  /* État initial - attendre 1s avant l'animation */
+  0%, 10% { transform: scale(1) rotate(0deg); }
+  
+  /* Premier bump avec rotation -3° et scale plus important */
+  12% { transform: scale(1.12) rotate(-3deg); }
+  
+  /* Retour et rotation +3° avec compression */
+  15% { transform: scale(0.95) rotate(3deg); }
+  
+  /* Rebond avec rotation -1.5° */
+  18% { transform: scale(1.05) rotate(-1.5deg); }
+  
+  /* Dernier ajustement avec légère rotation */
+  21% { transform: scale(0.98) rotate(0.8deg); }
+  
+  /* Retour à l'état normal */
+  24%, 100% { transform: scale(1) rotate(0deg); }
+}
+
+.knok-bump-rotate {
+  animation: knok-bump-rotate 10s forwards; /* Une seule fois, avec durée longue pour couvrir toute l'anim du GIF */
+  transform-origin: center center;
+}
+
+.custom-cursor-area * {
+  cursor: none !important;
+}
+
+/* Préchargement des curseurs pour éviter la latence */
+body::after {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  z-index: -1;
+  content: url('/src/assets/cursors/cursor-grab.svg') url('/src/assets/cursors/cursor-close.svg') 
+           url('/src/assets/cursors/cursor-adopt.svg') url('/src/assets/cursors/cursor-meet.svg') url('/src/assets/cursors/cursor-knok.svg')
+           url('/src/assets/cursors/cursor-pill-adopt.svg') url('/src/assets/cursors/cursor-pill-meet.svg') url('/src/assets/cursors/cursor-pill-knok.svg');
+}
+
+/* Animation d'entrée glissante pour la Layer-Card des containers ADOPTED */
+@keyframes slideUpAdopted {
+  0% {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.card-adopted-slide-in {
+  animation: slideUpAdopted 0.5s ease-out forwards;
+}
+
+/* Transition pour les overlays (uniquement) */
+
+/* Animation du curseur clignotant */
+@keyframes blink-cursor {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* Animation typewriter pour les containers FREE */
+.typewriter-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.typewriter-text {
+  display: block;
+  color: white;
+  font-weight: bold;
+  font-size: 13px;
+  font-family: 'Roboto Mono', monospace;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  white-space: nowrap;
+}
+
+/* Curseur clignotant */
+.typewriter-text::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  top: 15%;
+  height: 70%;
+  width: 2px;
+  background-color: white;
+  animation: blink-cursor 0.6s step-end infinite;
+  opacity: 0; /* Invisible par défaut */
+}
+
+/* Curseur clignotant toujours visible quand le container est survolé */
+.cursor-visible .typewriter-text::after {
+  opacity: 1 !important;
+  display: block !important;
+}
+
+/* État initial - affiche FREE */
+.typewriter-text::before {
+  content: "FREE";
+}
+
+/* Animation activée */
+.typewriter-active .typewriter-text::before {
+  animation: typewriter-animation 5s ease-in-out forwards; /* Durée réduite à 5s au lieu de 10s */
+}
+
+/* Curseur clignotant - toujours visible */
+.typewriter-text::after {
+  content: "";
+  position: absolute;
+  right: -4px;
+  top: 0;
+  height: 100%;
+  width: 2px;
+  background-color: white;
+  animation: blink-cursor 0.8s step-end infinite;
+}
+
+/* Séquence d'animation de la machine à écrire - 2x plus rapide */
+@keyframes typewriter-animation {
+  /* 1. FREE initial */
+  0%, 5% {
+    content: "FREE";
+  }
+  
+  /* 2. Effacement lettre par lettre */
+  7% { content: "FRE"; }
+  9% { content: "FR"; }
+  11% { content: "F"; }
+  13%, 15% { content: ""; }
+  
+  /* 3. Apparition du nom */
+  17% { content: attr(data-letter-1); }
+  19% { content: attr(data-letter-1) attr(data-letter-2); }
+  21% { content: attr(data-letter-1) attr(data-letter-2) attr(data-letter-3); }
+  23% { content: attr(data-letter-1) attr(data-letter-2) attr(data-letter-3) attr(data-letter-4); }
+  25% { content: attr(data-letter-1) attr(data-letter-2) attr(data-letter-3) attr(data-letter-4) attr(data-letter-5); }
+  27% { content: attr(data-letter-1) attr(data-letter-2) attr(data-letter-3) attr(data-letter-4) attr(data-letter-5) attr(data-letter-6); }
+  29% { content: attr(data-letter-1) attr(data-letter-2) attr(data-letter-3) attr(data-letter-4) attr(data-letter-5) attr(data-letter-6) attr(data-letter-7); }
+  
+  /* 4. Pause avec le nom */
+  31%, 50% { content: attr(data-text); }
+  
+  /* 5. Effacement lettre par lettre */
+  52% { content: attr(data-part-1); }
+  54% { content: attr(data-part-2); }
+  56% { content: attr(data-part-3); }
+  58% { content: attr(data-part-4); }
+  60% { content: attr(data-part-5); }
+  62% { content: attr(data-part-6); }
+  64%, 70% { content: ""; }
+  
+  /* 6. Réécriture de FREE lettre par lettre */
+  72% { content: "F"; }
+  76% { content: "FR"; }
+  80% { content: "FRE"; }
+  84%, 100% { content: "FREE"; }
+}
+
+/* Animation pour "FREE" généralisée pour tout container */
+@keyframes free-animation-sequence {
+  0%, 10% { content: "FREE"; }
+  12%, 13% { content: "FRE"; }
+  14%, 15% { content: "FR"; }
+  16%, 17% { content: "F"; }
+  18%, 22% { content: ""; }
+  
+  /* Nom générique qui sera remplacé par attr() */
+  23% { content: attr(data-nft-name); visibility: hidden; }
+  24% { content: attr(data-nft-name); visibility: visible; width: 0; }
+  
+  /* Écrire le nom de façon mécanique */
+  25%, 40% { content: attr(data-nft-name); width: auto; }
+  
+  /* Pause après le nom */
+  42% { content: attr(data-nft-name); }
+  
+  /* Ajouter "IS FREE!" */
+  45% { content: attr(data-nft-name) " I"; }
+  47% { content: attr(data-nft-name) " IS"; }
+  49% { content: attr(data-nft-name) " IS "; }
+  51% { content: attr(data-nft-name) " IS F"; }
+  53% { content: attr(data-nft-name) " IS FR"; }
+  55% { content: attr(data-nft-name) " IS FRE"; }
+  57% { content: attr(data-nft-name) " IS FREE"; }
+  59% { content: attr(data-nft-name) " IS FREE!"; }
+  
+  /* Pause longue */
+  65% { content: attr(data-nft-name) " IS FREE!"; }
+  
+  /* Effacement progressif */
+  67% { content: attr(data-nft-name) " IS FREE"; }
+  69% { content: attr(data-nft-name) " IS FRE"; }
+  71% { content: attr(data-nft-name) " IS FR"; }
+  73% { content: attr(data-nft-name) " IS F"; }
+  75% { content: attr(data-nft-name) " IS "; }
+  77% { content: attr(data-nft-name) " IS"; }
+  79% { content: attr(data-nft-name) " I"; }
+  81% { content: attr(data-nft-name); }
+  
+  /* Suite de l'effacement */
+  83% { content: ""; }
+  
+  /* Réécrire FREE */
+  85% { content: "F"; }
+  87% { content: "FR"; }
+  89% { content: "FRE"; }
+  91%, 100% { content: "FREE"; }
+}
+
+/* La classe active déclenche l'animation */
+.typewriter-free-text::before {
+  content: "FREE";
+  display: inline-block;
+  white-space: nowrap;
+  position: relative;
+  z-index: 5;
+  font-family: 'Roboto Mono', monospace;
+  font-weight: bold;
+  font-size: 13px;
+  text-transform: uppercase;
+  color: white;
+  letter-spacing: 1px;
+
+/* Animations ZoomHover pour preview admin */
+@keyframes zoomHoverEffect {
+  0% { 
+    transform: scale(1); 
+  }
+  25% { 
+    transform: scale(3.0); 
+  }
+  100% { 
+    transform: scale(1); 
+  }
+}
+
+.zoom-hover-active {
+  transform-origin: 24% 50%;
+  transition: transform 0.1s ease-out;
+}
+
+.zoom-hover-active:hover {
+  animation: zoomHoverEffect 1.5s ease-in-out;
+  animation-fill-mode: both;
+}
+
+/* Curseurs pour preview admin */
+.cursor-admin {
+  cursor: url('/@fs/home/runner/workspace/attached_assets/Yhom_PictosMarket/cursor-admin.svg'), auto !important;
+}
+
+.cursor-grab {
+  cursor: url('/@fs/home/runner/workspace/attached_assets/Yhom_PictosMarket/cursor-grab.svg'), grab !important;
+}
+  border-right: 2px solid white;
+  animation: blink-cursor 0.8s step-end infinite;
+  padding-right: 2px;
+}
+
+/* Redéfinir l'animation avec le nom NFT spécifique */
+.typewriter-free-text:hover::before {
+  animation: free-animation-sequence 12s forwards, blink-cursor 0.8s step-end infinite;
+  animation-iteration-count: 1, infinite;
+}
+
+/* Styles pour le mode debug */
+.debug-click-zone {
+  border: 2px dashed rgba(255, 0, 0, 0.5) !important;
+  background-color: rgba(255, 0, 0, 0.2) !important;
+}
+
+.debug-panel-zone {
+  border: 2px dashed rgba(0, 255, 0, 0.5) !important;
+  background-color: rgba(0, 255, 0, 0.2) !important;
+}
+
+.debug-grab-zone {
+  border: 2px dashed rgba(0, 0, 255, 0.5) !important;
+  background-color: rgba(0, 0, 255, 0.2) !important;
+}
+
+.debug-action-zone {
+  border: 2px dashed rgba(255, 165, 0, 0.5) !important;
+  background-color: rgba(255, 165, 0, 0.2) !important;
+}
+
+/* Styles pour les CTA pills dans les containers ouverts */
+.pill-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 15px;
+  border-radius: 50px;
+  font-family: 'Roboto Mono', monospace;
+  font-weight: bold;
+  font-size: 12px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  min-width: 80px;
+}
+
+.pill-cta:hover {
+  transform: scale(1.05);
+}
+
+.pill-cta-adopt {
+  background-color: #000000;
+  color: white;
+}
+
+.pill-cta-meet {
+  background-color: #E02B89;
+  color: white;
+}
+
+.pill-cta-knok {
+  background-color: #F35C41;
+  color: white;
+}
+
+.debug-indicator {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 12px;
+  z-index: 9999;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Animation pour machine à écrire (TypewriterAnimation) */
+.typewriter-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.typewriter-display {
+  position: relative;
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 500;
+  letter-spacing: 1px;
+  color: white;
+  text-transform: uppercase;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.typewriter-content {
+  display: inline-block;
+}
+
+.typewriter-content::before {
+  content: "FREE";
+}
+
+/* Curseur clignotant */
+.typewriter-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 14px;
+  background-color: white;
+  margin-left: 2px;
+  animation: blink-animation 0.6s step-end infinite;
+}
+
+@keyframes blink-animation {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Animation pour le texte quand déclenché */
+.typewriter-display[data-animation-state="idle"] .typewriter-content::before {
+  content: "FREE";
+}
+
+.typewriter-display[data-animation-state="triggered"] .typewriter-content::before {
+  content: "FREE";
+  animation: typewriter-sequence 5s forwards;
+}
+
+@keyframes typewriter-sequence {
+  /* Départ avec FREE pendant 0.5s */
+  0%, 10% { content: "FREE"; }
+  
+  /* Effacement progressif sur 0.5s */
+  15% { content: "FRE"; }
+  20% { content: "FR"; }
+  25% { content: "F"; }
+  30% { content: ""; }
+  
+  /* Pause vide pendant 0.25s */
+  35% { content: ""; }
+  
+  /* Affichage du nom (par exemple DOUBLURE) sur 1s */
+  40%, 60% { content: attr(data-text); }
+  
+  /* Pause avec le nom pendant 0.5s */
+  65% { content: attr(data-text); }
+  
+  /* Effacement du nom sur 0.5s */
+  70% { content: ""; }
+  
+  /* Pause vide pendant 0.25s */
+  75% { content: ""; }
+  
+  /* Réapparition de FREE sur 0.5s */
+  80% { content: "F"; }
+  85% { content: "FR"; }
+  90% { content: "FRE"; }
+  95%, 100% { content: "FREE"; }
+}
+
+/* ===== ANIMATIONS POUR CURSEURS PILL-LIKE ===== */
+
+/* Animation de déploiement pour les curseurs Pill - Expansion centrée */
+@keyframes pillExpand {
+  /* État initial: cercle parfait */
+  0% {
+    width: 32px;
+    opacity: 0.8;
+    transform: translateX(0) scale(0.9);
+  }
+  /* Début d'expansion */
+  30% {
+    width: 50px;
+    opacity: 0.9;
+    transform: translateX(-9px) scale(0.95);
+  }
+  /* Expansion intermédiaire */
+  60% {
+    width: 70px;
+    opacity: 0.95;
+    transform: translateX(-19px) scale(1.02);
+  }
+  /* État final: pill complète centrée */
+  100% {
+    width: 90px;
+    opacity: 1;
+    transform: translateX(-29px) scale(1);
+  }
+}
+
+/* Styles pour les curseurs Pill-Like */
+.pill-cursor {
+  position: fixed;
+  height: 32px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Roboto Mono', monospace;
+  font-weight: bold;
+  font-size: 11px;
+  color: white;
+  text-transform: uppercase;
+  padding: 0 12px;
+  pointer-events: none;
+  z-index: 9999;
+  min-width: 32px;
+  max-width: 90px;
+  overflow: hidden;
+  
+  /* Animation de déploiement - Version normale */
+  animation: pillExpand 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  
+  /* Transition pour les changements d'état */
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animation de pulsation subtile pour les pills */
+@keyframes pillPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+}
+
+/* Animation de pulsation pour KNOK_PILL avec rotation */
+@keyframes pillKnokBump {
+  0%, 100% {
+    transform: translateX(-29px) scale(1) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-29px) scale(1.05) rotate(-2deg);
+  }
+  50% {
+    transform: translateX(-29px) scale(1.08) rotate(2deg);
+  }
+  75% {
+    transform: translateX(-29px) scale(1.03) rotate(-1deg);
+  }
+}
+
+/* Texte dans les pills - Apparaît après le début de l'expansion */
+.pill-text {
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  opacity: 0;
+  animation: textFadeIn 0.2s ease-out 0.15s forwards;
+}
+
+@keyframes textFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation spéciale pour KNOK avec bump et rotation */
+.pill-cursor.knok-bump-rotate {
+  animation: pillExpand 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+             pillKnokBump 2s ease-in-out 0.5s infinite;
+}
+
+/* Animation de flèche traversant le texte UN MATCH ? */
+@keyframes arrowTraversal {
+  0% { content: "UN MATCH ?"; }
+  4% { content: "UN ⟩ATCH ?"; }
+  8% { content: "UN M⟩TCH ?"; }
+  12% { content: "UN MA⟩CH ?"; }
+  16% { content: "UN MAT⟩H ?"; }
+  20% { content: "UN MATC⟩ ?"; }
+  24% { content: "UN MATCH⟩"; }
+  28% { content: "UN MATCH ⟩"; }
+  32%, 90% { content: "UN MATCH ⟩"; }
+  100% { content: "UN MATCH ?"; }
+}
+
+/* Animation de traversée avec flèche blanche pour COUP D'OEIL */
+@keyframes meetArrowTraversal {
+  0% { content: "COUP D'OEIL"; }
+  4% { content: "⟩OUP D'OEIL"; }
+  8% { content: "C⟩UP D'OEIL"; }
+  12% { content: "CO⟩P D'OEIL"; }
+  16% { content: "COU⟩ D'OEIL"; }
+  20% { content: "COUP⟩D'OEIL"; }
+  24% { content: "COUP ⟩'OEIL"; }
+  28% { content: "COUP D⟩OEIL"; }
+  32%, 70% { content: "COUP D⟩OEIL"; }
+  74% { content: "COUP D'⟩EIL"; }
+  78% { content: "COUP D'O⟩IL"; }
+  82% { content: "COUP D'OE⟩L"; }
+  86% { content: "COUP D'OEI⟩"; }
+  90% { content: "COUP D'OEIL⟩"; }
+  100% { content: "COUP D'OEIL"; }
+}
+
+/* Styles pour l'animation du texte MEET */
+.pill-cursor.meet-arrow-anim .pill-text {
+  position: relative;
+  color: transparent;
+}
+
+.pill-cursor.meet-arrow-anim .pill-text::after {
+  content: "COUP D'OEIL";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  color: white;
+  animation: meetArrowTraversal 2s ease-in-out 1s infinite;
+}
+
+/* Animation de traversée simple pour À DÉCOUVRIR ! */
+@keyframes adoptArrowTraversal {
+  0% { content: "À DÉCOUVRIR !"; }
+  4% { content: "⟩ DÉCOUVRIR !"; }
+  8% { content: "À⟩DÉCOUVRIR !"; }
+  12% { content: "À ⟩ÉCOUVRIR !"; }
+  16% { content: "À D⟩COUVRIR !"; }
+  20% { content: "À DÉ⟩OUVRIR !"; }
+  24% { content: "À DÉC⟩UVRIR !"; }
+  28% { content: "À DÉCO⟩VRIR !"; }
+  32% { content: "À DÉCOU⟩RIR !"; }
+  36% { content: "À DÉCOUV⟩IR !"; }
+  40% { content: "À DÉCOUVR⟩R !"; }
+  44% { content: "À DÉCOUVRI⟩ !"; }
+  48% { content: "À DÉCOUVRIR⟩!"; }
+  52% { content: "À DÉCOUVRIR ⟩"; }
+  56%, 90% { content: "À DÉCOUVRIR ⟩"; }
+  100% { content: "À DÉCOUVRIR !"; }
+}
+
+/* Styles pour l'animation du texte ADOPT */
+.pill-cursor.adopt-arrow-anim .pill-text {
+  position: relative;
+  color: transparent;
+}
+
+.pill-cursor.adopt-arrow-anim .pill-text::after {
+  content: "À DÉCOUVRIR !";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  color: #FF26BD;
+  animation: adoptArrowTraversal 2s ease-in-out 1s infinite;
+}
+
+/* Animation de pulsation pour les zones musicales */
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.7; }
+}
+
+/* Classe pour déclencher l'animation de flèche KNOK */
+.pill-cursor.knok-bump-rotate .pill-text {
+  position: relative;
+  color: transparent; /* Masquer le texte original */
+}
+
+.pill-cursor.knok-bump-rotate .pill-text::after {
+  content: "UN MATCH ?";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  color: white; /* Afficher le texte animé en blanc */
+  animation: arrowTraversal 2s ease-in-out 1s infinite;
+}
+
+/* Animation de hover subtile */
+.pill-cursor:hover {
+  transform: scale(1.02);
+  filter: brightness(1.1);
+}
