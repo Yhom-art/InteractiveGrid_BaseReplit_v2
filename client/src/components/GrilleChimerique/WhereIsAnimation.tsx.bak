@@ -1,0 +1,159 @@
+import React, { useState, useEffect, useRef } from 'react';
+
+interface WhereIsAnimationProps {
+  name: string;     // Nom de la NFT
+  isVisible: boolean; // Si le container est survolé
+}
+
+/**
+ * Animation séquentielle pour containers ADOPT
+ * Séquence : WHERE IS ? → effacer → [NOM] → effacer → WHERE IS ?
+ */
+export function WhereIsAnimation({ name, isVisible }: WhereIsAnimationProps) {
+  // État du texte affiché - on affiche WHERE IS et le ? clignotant séparément
+  const [displayText, setDisplayText] = useState("WHERE\u200AIS");
+  const [showQuestion, setShowQuestion] = useState(true);
+  
+  // Référence pour savoir si l'animation est en cours
+  const animatingRef = useRef(false);
+  
+  // Référence pour le timeout actuel
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Référence pour le texte de la NFT
+  const nftName = name || "UNKNOWN";
+  
+  // Nettoyer les timeouts à la destruction
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // La fonction principale qui gère l'animation
+  useEffect(() => {
+    // Si le container est survolé et qu'aucune animation n'est en cours
+    if (isVisible && !animatingRef.current) {
+      // Marquer que l'animation est en cours
+      animatingRef.current = true;
+      
+      // Fonction récursive pour l'animation
+      const animateWhereIs = () => {
+        // Phase 1: Effacement de "WHERE IS" et du point d'interrogation
+        const eraseInitial = () => {
+          setShowQuestion(false); // Cacher le point d'interrogation
+          setDisplayText("WHERE\u200AI");
+          timeoutRef.current = setTimeout(() => {
+            setDisplayText("WHERE");
+            timeoutRef.current = setTimeout(() => {
+              setDisplayText("WHER");
+              timeoutRef.current = setTimeout(() => {
+                setDisplayText("WHE");
+                timeoutRef.current = setTimeout(() => {
+                  setDisplayText("WH");
+                  timeoutRef.current = setTimeout(() => {
+                    setDisplayText("W");
+                    timeoutRef.current = setTimeout(() => {
+                      setDisplayText("");
+                      timeoutRef.current = setTimeout(typeNftName, 200);
+                    }, 50);
+                  }, 50);
+                }, 50);
+              }, 50);
+            }, 50);
+          }, 50);
+        };
+        
+        // Phase 2: Écriture du nom NFT
+        const typeNftName = () => {
+          let currentIndex = 0;
+          
+          const typeNextLetter = () => {
+            currentIndex++;
+            // Si on n'a pas fini d'écrire le nom
+            if (currentIndex <= nftName.length) {
+              setDisplayText(nftName.slice(0, currentIndex));
+              timeoutRef.current = setTimeout(typeNextLetter, 70);
+            } else {
+              // Pause avec le nom complet
+              timeoutRef.current = setTimeout(eraseNftName, 1000);
+            }
+          };
+          
+          // Commencer avec la première lettre
+          setDisplayText(nftName.slice(0, 1));
+          timeoutRef.current = setTimeout(typeNextLetter, 70);
+        };
+        
+        // Phase 3: Effacement du nom NFT
+        const eraseNftName = () => {
+          let currentLength = nftName.length;
+          
+          const eraseNextLetter = () => {
+            currentLength--;
+            // Si on n'a pas fini d'effacer
+            if (currentLength >= 0) {
+              setDisplayText(nftName.slice(0, currentLength));
+              timeoutRef.current = setTimeout(eraseNextLetter, 50);
+            } else {
+              // Transition vers récriture de WHERE IS
+              timeoutRef.current = setTimeout(typeWhereIs, 200);
+            }
+          };
+          
+          timeoutRef.current = setTimeout(eraseNextLetter, 50);
+        };
+        
+        // Phase 4: Récriture de WHERE IS
+        const typeWhereIs = () => {
+          setDisplayText("W");
+          timeoutRef.current = setTimeout(() => {
+            setDisplayText("WH");
+            timeoutRef.current = setTimeout(() => {
+              setDisplayText("WHE");
+              timeoutRef.current = setTimeout(() => {
+                setDisplayText("WHER");
+                timeoutRef.current = setTimeout(() => {
+                  setDisplayText("WHERE");
+                  timeoutRef.current = setTimeout(() => {
+                    setDisplayText("WHERE\u200AI");
+                    timeoutRef.current = setTimeout(() => {
+                      setDisplayText("WHERE\u200AIS");
+                      setShowQuestion(true); // Réafficher le point d'interrogation
+                      // Animation terminée, on peut en redémarrer une
+                      animatingRef.current = false;
+                    }, 50);
+                  }, 50);
+                }, 50);
+              }, 50);
+            }, 50);
+          }, 50);
+        };
+        
+        // Démarrer l'animation complète
+        timeoutRef.current = setTimeout(eraseInitial, 500);
+      };
+      
+      // Lancer l'animation
+      animateWhereIs();
+    }
+  }, [isVisible, nftName]);
+  
+  return (
+    <div className="flex items-center justify-center w-full h-full">
+      <div className="relative font-mono font-bold text-black uppercase tracking-wider text-xs">
+        <span>{displayText}</span>
+        {showQuestion && (
+          <span 
+            className="ml-1 blinking-question"
+            style={{ fontWeight: 'bold', fontSize: 'inherit' }}
+          >?</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default WhereIsAnimation;

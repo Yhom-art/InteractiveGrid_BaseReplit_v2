@@ -1,0 +1,1130 @@
+import React, { useState, useEffect } from 'react';
+
+// Import du type ContainerType depuis le fichier commun
+import { ContainerType } from '@/types/common';
+
+// Import des fonctions pour récupérer les données et images NFT
+import { getNFTDataForContainer, getImageForContainerType } from './nftMapping';
+
+// Constantes pour la grille
+const GRID_COLS = 32;    // 32 colonnes pour la grille complète
+const GRID_ROWS = 32;    // 32 lignes pour la grille complète
+const CENTER_COL = 16;   // Position centrale horizontale
+const CENTER_ROW = 16;   // Position centrale verticale
+const VISIBLE_COLS = 8;  // Nombre de colonnes visibles dans la viewport
+const VISIBLE_ROWS = 8;  // Nombre de lignes visibles dans la viewport
+
+// Dimensions des containers et panels
+const CONTAINER_SIZE = 128;  // Taille standard de base (128x128px)
+const CONTAINER_GAP = 4;     // Écart entre les containers (4px) 
+const PANEL_WIDTH = 304;     // Largeur des panels (304px)
+
+// Types d'expansion pour les containers
+enum ContainerExpansionType {
+  NONE = "none",           // Pas d'expansion (container standard 128px)
+  ONEONE_UP = "oneone_up", // Expansion vers le haut (260px total)
+  ONEONE_DWN = "oneone_dwn", // Expansion vers le bas (260px total)
+  ONEHALF_DWN = "onehalf_dwn" // Expansion vers le bas (192px total)
+}
+
+// Dimensions exactes pour chaque type d'expansion
+const EXPANSIONS = {
+  [ContainerExpansionType.NONE]: { 
+    height: CONTAINER_SIZE, 
+    offsetTop: 0, 
+    pushAmount: 0 
+  },
+  [ContainerExpansionType.ONEONE_UP]: { 
+    height: 260, 
+    offsetTop: -(260 - CONTAINER_SIZE), 
+    pushAmount: 260 - CONTAINER_SIZE // 132px vers le haut
+  },
+  [ContainerExpansionType.ONEONE_DWN]: { 
+    height: 260, 
+    offsetTop: 0, 
+    pushAmount: 260 - CONTAINER_SIZE // 132px vers le bas
+  },
+  [ContainerExpansionType.ONEHALF_DWN]: { 
+    height: 192, 
+    offsetTop: 0, 
+    pushAmount: 192 - CONTAINER_SIZE // 64px vers le bas
+  }
+};
+
+// Types pour nos modèles de données
+interface Container {
+  id: number;
+  col: number;
+  row: number;
+  type: ContainerType;
+  expansionType: ContainerExpansionType;
+  isExpanded: boolean;
+}
+
+interface PanelData {
+  containerId: number;
+  containerCol: number;
+  containerRow: number;
+  containerType: ContainerType;
+  isOpen: boolean;
+}
+
+// Couleurs selon le type de container
+const COLORS: Record<ContainerType, string> = {
+  [ContainerType.FREE]: '#58C4DD',
+  [ContainerType.ADOPT]: '#F2C94C',
+  [ContainerType.ADOPTED]: '#EB5757',
+  [ContainerType.EDITORIAL]: '#6FCF97',
+  [ContainerType.INACTIVE]: '#cccccc'
+};
+
+/**
+ * Grille Chimérique - Implémentation finale
+ * Grille avec containers expansibles et panels
+ */
+export function GrilleChimerique() {
+  // États de base pour la grille
+  const [containers, setContainers] = useState<Container[]>([]);
+  const [panels, setPanels] = useState<Map<number, PanelData>>(new Map());
+  const [columnOffsets, setColumnOffsets] = useState<number[]>(Array(GRID_COLS).fill(0));
+  const [verticalShifts, setVerticalShifts] = useState<Map<number, number>>(new Map());
+  
+  // État pour le mode debug (activable avec la touche 'd')
+  const [debug, setDebug] = useState(true); // Démarrage en mode debug pour vérification
+  
+  // État pour le centre de la vue
+  const [viewCenter, setViewCenter] = useState({ col: CENTER_COL, row: CENTER_ROW });
+  
+  // Gérer les raccourcis clavier
+  useEffect(() => {
+    const handleKeydown = (e: KeyboardEvent) => {
+      // Touche 'd' pour activer/désactiver le mode debug
+      if (e.key === 'd') {
+        setDebug(prev => !prev);
+        console.log('Mode debug:', !debug);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  }, [debug]);
+  
+  // Fonction pour générer des positions en spirale à partir du centre
+  const generateSpiralPositions = (count: number): { row: number, col: number }[] => {
+    const positions: { row: number, col: number }[] = [];
+    
+    // Le premier container est toujours au centre
+    positions.push({ row: CENTER_ROW, col: CENTER_COL });
+    
+    if (count <= 1) return positions;
+    
+    // Algorithme de spirale
+    // Direction: 0=droite, 1=bas, 2=gauche, 3=haut
+    let direction = 0;
+    // Taille du segment actuel
+    let segmentLength = 1;
+    // Segments complétés dans la direction actuelle
+    let segmentsCompleted = 0;
+    
+    // Position actuelle (commence au centre)
+    let currentRow = CENTER_ROW;
+    let currentCol = CENTER_COL;
+    
+    // Générer le reste des positions en spirale
+    while (positions.length < count) {
+      // Avancer dans la direction actuelle
+      switch (direction) {
+        case 0: // Droite
+          currentCol++;
+          break;
+        case 1: // Bas
+          currentRow++;
+          break;
+        case 2: // Gauche
+          currentCol--;
+          break;
+        case 3: // Haut
+          currentRow--;
+          break;
+      }
+      
+      // Ajouter la nouvelle position à la liste
+      positions.push({ row: currentRow, col: currentCol });
+      
+      // Vérifier si on a parcouru tout le segment actuel
+      segmentsCompleted++;
+      if (segmentsCompleted === segmentLength) {
+        // Changer de direction
+        direction = (direction + 1) % 4;
+        segmentsCompleted = 0;
+        
+        // Après avoir complété 2 segments dans la même direction (horizontal puis vertical),
+        // on augmente la longueur du segment
+        if (direction === 0 || direction === 2) {
+          segmentLength++;
+        }
+      }
+    }
+    
+    return positions;
+  };
+  
+  // Générer les containers au chargement initial
+  useEffect(() => {
+    const initialContainers: Container[] = [];
+    
+    // Générer 25 positions en spirale à partir du centre
+    const positions = generateSpiralPositions(25);
+    
+    // Créer les containers pour ces positions
+    positions.forEach(({ row, col }, index) => {
+      // Déterminer le type selon la position dans la spirale
+      let type: ContainerType;
+      
+      // Distribution des types de container avec seulement 2 éditoriaux
+      if (index === 0) {
+        // Le centre reste éditorial
+        type = ContainerType.EDITORIAL;
+      } else if (index === 12) {
+        // Deuxième éditorial à un endroit précis dans la spirale
+        type = ContainerType.INACTIVE; // Type INACTIVE = Yhom_Editorial
+      } else if (index % 3 === 1) {
+        type = ContainerType.FREE;
+      } else if (index % 3 === 2) {
+        type = ContainerType.ADOPT;
+      } else {
+        type = ContainerType.ADOPTED;
+      }
+      
+      // Déterminer le type d'expansion selon le type de container
+      // Chaque type de container a un format d'expansion fixe et précis
+      let expansionType: ContainerExpansionType;
+      
+      // Correspondance exacte entre types de container et types d'expansion
+      // selon les spécifications du document
+      switch (type) {
+        case ContainerType.FREE:
+          expansionType = ContainerExpansionType.ONEONE_UP; // FREE = extension vers le haut (194px)
+          break;
+        case ContainerType.ADOPTED:
+          expansionType = ContainerExpansionType.ONEONE_DWN; // ADOPTED = extension vers le bas (194px)
+          break;
+        case ContainerType.ADOPT:
+          expansionType = ContainerExpansionType.ONEHALF_DWN; // ADOPT = extension partielle vers le bas (192px)
+          break;
+        case ContainerType.EDITORIAL:
+          expansionType = ContainerExpansionType.NONE; // Éditorial = taille fixe (128px)
+          break;
+        default:
+          expansionType = ContainerExpansionType.NONE; // Inactif = taille fixe (128px)
+          break;
+      }
+      
+      // Ajuster l'ID pour correspondre à la position réelle dans la grille 32x32
+      const id = row * GRID_COLS + col;
+      
+      // Ajouter le container à la liste
+      initialContainers.push({
+        id,
+        col,
+        row,
+        type,
+        expansionType,
+        isExpanded: false
+      });
+    });
+    
+    setContainers(initialContainers);
+  }, []);
+  
+  // Calculer les décalages horizontaux (colonnes) et verticaux (containers)
+  useEffect(() => {
+    if (containers.length === 0) return;
+    
+    // 1. Calculer les décalages horizontaux (pour les panels)
+    const newOffsets = Array(GRID_COLS).fill(0);
+    
+    // Parcourir tous les panels ouverts, triés par colonne
+    const openPanels = Array.from(panels.values())
+      .filter(panel => panel.isOpen)
+      .sort((a, b) => a.containerCol - b.containerCol);
+    
+    // Pour chaque panel ouvert, calculer l'impact sur les colonnes à droite
+    openPanels.forEach(panel => {
+      const panelCol = panel.containerCol;
+      
+      // Toutes les colonnes à droite de celle-ci sont décalées
+      for (let col = panelCol + 1; col < GRID_COLS; col++) {
+        newOffsets[col] += PANEL_WIDTH + CONTAINER_GAP;
+      }
+    });
+    
+    // 2. Calculer les décalages verticaux (pour les containers expandés)
+    const newVerticalShifts = new Map<number, number>();
+    
+    // Pour chaque colonne
+    for (let col = 0; col < GRID_COLS; col++) {
+      // Récupérer les containers de cette colonne, triés par row
+      const colContainers = containers
+        .filter(c => c.col === col)
+        .sort((a, b) => a.row - b.row);
+      
+      // Accumuler le décalage vertical en parcourant la colonne de haut en bas
+      let accumulatedShift = 0;
+      
+      for (let i = 0; i < colContainers.length; i++) {
+        const container = colContainers[i];
+        const containerId = container.id;
+        
+        // Appliquer le décalage accumulé à ce container
+        if (accumulatedShift > 0) {
+          newVerticalShifts.set(containerId, accumulatedShift);
+        }
+        
+        // Si ce container est expandé, calculer combien il pousse les suivants
+        if (container.isExpanded) {
+          const expansionType = container.expansionType;
+          const expansionInfo = EXPANSIONS[expansionType];
+          
+          // Pour les expansions vers le bas, on accumule le décalage
+          if (expansionType === ContainerExpansionType.ONEONE_DWN || 
+              expansionType === ContainerExpansionType.ONEHALF_DWN) {
+            accumulatedShift += expansionInfo.pushAmount;
+          }
+        }
+      }
+      
+      // Deuxième passe pour les expansions vers le haut
+      for (let i = colContainers.length - 1; i >= 0; i--) {
+        const container = colContainers[i];
+        
+        if (container.isExpanded && container.expansionType === ContainerExpansionType.ONEONE_UP) {
+          const expansionInfo = EXPANSIONS[container.expansionType];
+          
+          // Décaler tous les containers au-dessus
+          for (let j = i - 1; j >= 0; j--) {
+            const upperContainer = colContainers[j];
+            const currentShift = newVerticalShifts.get(upperContainer.id) || 0;
+            newVerticalShifts.set(
+              upperContainer.id, 
+              currentShift - Math.abs(expansionInfo.offsetTop)
+            );
+          }
+        }
+      }
+    }
+    
+    setColumnOffsets(newOffsets);
+    setVerticalShifts(newVerticalShifts);
+    
+    if (debug) {
+      console.log('Décalages horizontaux:', newOffsets);
+      console.log('Décalages verticaux:', Array.from(newVerticalShifts.entries())
+        .map(([id, shift]) => `#${id}: ${shift}px`)
+      );
+    }
+  }, [containers, panels, debug]);
+  
+  // Fonction pour basculer l'état d'expansion d'un container
+  const toggleContainerExpansion = (containerId: number) => {
+    const container = containers.find(c => c.id === containerId);
+    if (!container) return;
+    
+    const newContainers = [...containers];
+    const containerIndex = newContainers.findIndex(c => c.id === containerId);
+    
+    if (containerIndex === -1) return;
+    
+    // Inverser l'état d'expansion
+    const newExpanded = !container.isExpanded;
+    
+    // Si on réduit le container, vérifier si un panel était ouvert et le fermer
+    if (!newExpanded && panels.has(containerId)) {
+      const newPanels = new Map(panels);
+      newPanels.delete(containerId);
+      setPanels(newPanels);
+      console.log(`Panel fermé lors de la réduction du container ${containerId}`);
+    }
+    
+    // Mettre à jour le container
+    newContainers[containerIndex] = {
+      ...newContainers[containerIndex],
+      isExpanded: newExpanded
+    };
+    
+    setContainers(newContainers);
+    console.log(`Container ${containerId} ${newExpanded ? 'agrandi' : 'réduit'} (${container.expansionType})`);
+  };
+  
+  // Fonction pour basculer l'ouverture d'un panel
+  const togglePanel = (containerId: number) => {
+    const container = containers.find(c => c.id === containerId);
+    if (!container) return;
+    
+    // Un container doit être expandé pour avoir un panel
+    if (!container.isExpanded) {
+      console.log(`Le container ${containerId} doit être agrandi avant d'ouvrir un panel`);
+      return;
+    }
+    
+    // Créer une copie pour modification
+    const newPanels = new Map(panels);
+    
+    // Règle: Un seul panel par colonne
+    // Chercher si un autre panel est déjà ouvert dans cette colonne
+    const existingPanelInColumn = Array.from(newPanels.values()).find(
+      panel => panel.containerCol === container.col && panel.isOpen && panel.containerId !== containerId
+    );
+    
+    // Si un autre panel existe déjà dans cette colonne, le fermer
+    if (existingPanelInColumn) {
+      newPanels.delete(existingPanelInColumn.containerId);
+      console.log(`Panel fermé: ${existingPanelInColumn.containerId}`);
+    }
+    
+    // Si ce panel existe déjà, le fermer
+    if (newPanels.has(containerId)) {
+      newPanels.delete(containerId);
+      console.log(`Panel fermé: ${containerId}`);
+    } 
+    // Sinon, ouvrir un nouveau panel
+    else {
+      newPanels.set(containerId, {
+        containerId,
+        containerCol: container.col,
+        containerRow: container.row,
+        containerType: container.type,
+        isOpen: true
+      });
+      console.log(`Panel ouvert: ${containerId}`);
+    }
+    
+    // Mettre à jour l'état
+    setPanels(newPanels);
+    
+    // Log pour debug
+    console.log('Panels actifs:', Array.from(newPanels.entries())
+      .filter(([_, panel]) => panel.isOpen)
+      .map(([id, _]) => id)
+    );
+  };
+  
+  // Calculer la zone visible en fonction du centre de vue
+  const getVisibleBounds = () => {
+    const startCol = viewCenter.col - Math.floor(VISIBLE_COLS / 2);
+    const startRow = viewCenter.row - Math.floor(VISIBLE_ROWS / 2);
+    const endCol = startCol + VISIBLE_COLS;
+    const endRow = startRow + VISIBLE_ROWS;
+    
+    return { startCol, startRow, endCol, endRow };
+  };
+  
+  // Gérer le clic sur un container avec la logique d'interaction
+  const handleContainerClick = (containerId: number) => {
+    const container = containers.find(c => c.id === containerId);
+    if (!container) return;
+    
+    // Si le container est déjà agrandi, ouvrir son panel
+    if (container.isExpanded) {
+      togglePanel(containerId);
+      console.log("Container déjà agrandi, ouverture du panel");
+    }
+    // Sinon, c'est un clic pour agrandir le container
+    else {
+      toggleContainerExpansion(containerId);
+    }
+  };
+  
+  // Fonction pour gérer le déplacement de la vue avec la souris
+  const handleViewportMouseDown = (e: React.MouseEvent) => {
+    // Position initiale du curseur
+    const startX = e.clientX;
+    const startY = e.clientY;
+    
+    // Position initiale du centre de vue
+    const startViewCenter = { ...viewCenter };
+    
+    // Changer le curseur pour indiquer qu'on déplace
+    document.body.style.cursor = 'grabbing';
+    
+    // Fonction pour gérer le mouvement
+    const handleMouseMove = (e: MouseEvent) => {
+      // Calculer le déplacement en cellules
+      const deltaColsX = Math.round((startX - e.clientX) / (CONTAINER_SIZE + CONTAINER_GAP) * 0.5);
+      const deltaRowsY = Math.round((startY - e.clientY) / (CONTAINER_SIZE + CONTAINER_GAP) * 0.5);
+      
+      // Mettre à jour le centre de vue
+      setViewCenter({
+        col: Math.max(0, Math.min(GRID_COLS - 1, startViewCenter.col + deltaColsX)),
+        row: Math.max(0, Math.min(GRID_ROWS - 1, startViewCenter.row + deltaRowsY))
+      });
+    };
+    
+    // Fonction pour arrêter le déplacement
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'grab';
+    };
+    
+    // Ajouter les écouteurs pour le mouvement et le relâchement
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+  
+  // Rendu d'un container avec gestion des expansions
+  const renderContainer = (container: Container) => {
+    // Calculer les limites de la zone visible
+    const { startCol, startRow } = getVisibleBounds();
+    
+    // Ajuster les positions par rapport à notre zone visible
+    const adjustedCol = container.col - startCol;
+    const adjustedRow = container.row - startRow;
+    
+    // Calculer la position avec décalage de colonne (horizontal)
+    const left = (adjustedCol * (CONTAINER_SIZE + CONTAINER_GAP)) + columnOffsets[container.col];
+    
+    // Position de base du container selon sa ligne
+    let top = adjustedRow * (CONTAINER_SIZE + CONTAINER_GAP);
+    
+    // Ajouter le décalage vertical s'il existe pour ce container
+    const verticalShift = verticalShifts.get(container.id) || 0;
+    top += verticalShift;
+    
+    // Récupérer les dimensions appropriées selon le type d'expansion
+    const expansion = container.isExpanded 
+      ? EXPANSIONS[container.expansionType] 
+      : EXPANSIONS[ContainerExpansionType.NONE];
+    
+    // Appliquer l'offset vertical si le container est étendu vers le haut
+    if (container.isExpanded) {
+      top += expansion.offsetTop;
+    }
+    
+    // Déterminer la hauteur du container
+    const height = container.isExpanded ? expansion.height : CONTAINER_SIZE;
+    
+    // État du panel associé à ce container
+    const hasOpenPanel = panels.has(container.id) && panels.get(container.id)!.isOpen;
+    
+    // Récupérer les données NFT pour ce container
+    const nftData = getNFTDataForContainer(container.id, container.type);
+    
+    // Récupérer l'URL de l'image NFT
+    const imageUrl = getImageForContainerType(container.type);
+    
+    return (
+      <div
+        key={`container-${container.id}`}
+        className={`container ${container.isExpanded ? 'expanded' : ''} ${hasOpenPanel ? 'has-panel' : ''}`}
+        style={{
+          width: CONTAINER_SIZE,
+          height,
+          backgroundColor: 'transparent',
+          position: 'absolute',
+          left,
+          top,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: container.type === ContainerType.EDITORIAL || container.type === ContainerType.INACTIVE ? 'default' : 'pointer',
+          border: debug ? '1px dashed rgba(0,0,0,0.3)' : 'none',
+          transition: 'all 0.3s ease-out',
+          zIndex: hasOpenPanel ? 2 : 1,
+          overflow: 'hidden'
+        }}
+        onClick={() => {
+          // Containers éditoriaux sont dormants - pas d'interactions
+          if (container.type === ContainerType.EDITORIAL || container.type === ContainerType.INACTIVE) {
+            console.log(`Container éditorial ${container.id} - Sera utilisé pour des liens externes ou vidéos`);
+            return;
+          }
+          // Comportement normal pour les autres types
+          handleContainerClick(container.id);
+        }}
+      >
+        {/* Structure en couches (layers) pour le container */}
+        
+        {/* Layer-Pic - Image NFT en arrière-plan */}
+        <div className="layer-pic" style={{
+          position: 'absolute',
+          // Pour FREE, l'image reste en bas quand ouvert
+          top: container.type === ContainerType.FREE && container.isExpanded ? 
+               'auto' : 0,
+          bottom: container.type === ContainerType.FREE && container.isExpanded ? 
+                 0 : 'auto',
+          left: 0,
+          width: '100%',
+          height: CONTAINER_SIZE, // Hauteur fixe pour l'image toujours (128px)
+          zIndex: 1,
+          overflow: 'hidden',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          border: debug ? '2px solid blue' : 'none' // Bordure bleue en mode debug
+        }}>
+          {/* Image NFT */}
+          <div style={{
+            width: '100%',
+            height: '100%',
+            backgroundImage: `url(${imageUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundColor: 'transparent' 
+          }}></div>
+        </div>
+        
+        {/* Layer-Overlay - Avec effets visuels selon le type */}
+        <div 
+          className={`layer-overlay ${container.type === ContainerType.FREE && !container.isExpanded ? 'mix-blend-hard-light' : ''}`} 
+          style={{
+            position: 'absolute',
+            width: '100%',
+            height: container.isExpanded ? CONTAINER_SIZE : '100%', // Seulement sur la partie image
+            zIndex: 2,
+            // Couleurs spécifiques selon le type
+            backgroundColor: container.type === ContainerType.FREE && !container.isExpanded 
+              ? '#FF26BE' // Rose exact pour FREE
+              : container.type === ContainerType.ADOPT
+                ? 'rgba(229, 209, 211, 0.8)' // E5D1D3 à 80% pour ADOPT
+                : 'transparent',
+            // Flou pour ADOPT
+            backdropFilter: container.type === ContainerType.ADOPT ? 'blur(2px)' : 'none',
+            border: debug ? '2px solid green' : 'none', // Bordure verte en mode debug
+            // Position de l'overlay selon le type et l'état
+            ...(container.type === ContainerType.ADOPT && container.isExpanded 
+              ? { top: 'auto', bottom: 0 } 
+              : { top: 0, bottom: 'auto' }),
+        }}></div>
+        
+        {/* Layer-Card - Affichée selon le type et l'état */}
+        <div className="layer-card" style={{
+          position: 'absolute',
+          // Position adaptée selon le type
+          bottom: container.type === ContainerType.FREE && container.isExpanded ? 'auto' : 0,
+          top: container.type === ContainerType.FREE && container.isExpanded ? 0 : 'auto',
+          left: 0,
+          width: '100%',
+          // Background transparent pour ADOPT, blanc pour les autres
+          backgroundColor: container.type === ContainerType.ADOPT ? 'transparent' : 'white',
+          borderTop: container.type === ContainerType.FREE && container.isExpanded ? '1px solid #ddd' : 'none',
+          borderBottom: container.type !== ContainerType.FREE && container.isExpanded ? '1px solid #ddd' : 'none',
+          padding: '8px',
+          zIndex: 3,
+          // Visible uniquement pour les containers ouverts
+          display: container.isExpanded ? 'block' : 'none'
+        }}>
+          {/* Contenu pour FREE */}
+          {container.type === ContainerType.FREE && container.isExpanded && (
+            <div>
+              <div style={{ 
+                fontSize: '13px', 
+                fontWeight: 'bold', 
+                color: 'black',
+                fontFamily: "'Roboto Mono', monospace",
+                lineHeight: '0.9'
+              }}>
+                {nftData.name}
+              </div>
+              <div style={{ 
+                fontSize: '10px', 
+                marginTop: '2px', 
+                color: 'black',
+                fontFamily: "'Roboto Mono', monospace",
+                fontWeight: 'normal',
+                lineHeight: '0.9'
+              }}>
+                Collection: {nftData.collection}
+              </div>
+              <div style={{ 
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: '4px'
+              }}>
+                <span style={{ 
+                  fontSize: '9px', 
+                  color: 'black',
+                  fontFamily: "'Roboto Mono', monospace",
+                  lineHeight: '0.9'
+                }}>
+                  {nftData.reference}
+                </span>
+                <span style={{ 
+                  fontSize: '9px', 
+                  fontWeight: 'bold',
+                  fontFamily: "'Roboto Mono', monospace",
+                  color: 'black',
+                  lineHeight: '0.9'
+                }}>
+                  FREE
+                </span>
+              </div>
+            </div>
+          )}
+          
+          {/* Contenu pour ADOPT - Layer-Card avec fond transparent mais contenu visible */}
+          {container.type === ContainerType.ADOPT && container.isExpanded && (
+            <div>
+              <div style={{ 
+                fontSize: '13px', 
+                fontWeight: 'bold', 
+                color: 'black',
+                fontFamily: "'Roboto Mono', monospace",
+                lineHeight: '0.9'
+              }}>
+                {nftData.name}
+              </div>
+              <div style={{ 
+                fontSize: '10px', 
+                marginTop: '2px', 
+                color: '#333',
+                fontFamily: "'Roboto Mono', monospace",
+                lineHeight: '0.9'
+              }}>
+                Collection: {nftData.collection}
+              </div>
+              <div style={{ 
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: '4px'
+              }}>
+                <span style={{ 
+                  fontSize: '9px', 
+                  color: '#666',
+                  fontFamily: "'Roboto Mono', monospace",
+                  lineHeight: '0.9'
+                }}>
+                  {nftData.reference}
+                </span>
+                <span style={{ 
+                  fontSize: '9px', 
+                  fontWeight: 'bold',
+                  color: '#F2C94C',
+                  fontFamily: "'Roboto Mono', monospace",
+                  lineHeight: '0.9'
+                }}>
+                  {nftData.price}
+                </span>
+              </div>
+            </div>
+          )}
+          
+          {/* Contenu pour ADOPTED */}
+          {container.type === ContainerType.ADOPTED && container.isExpanded && (
+            <div>
+              <div style={{ 
+                fontSize: '14px', 
+                fontWeight: 'bold', 
+                color: 'black',
+                fontFamily: "'Roboto Mono', monospace"
+              }}>
+                {nftData.name}
+              </div>
+              <div style={{ 
+                fontSize: '11px', 
+                marginTop: '2px', 
+                color: '#333',
+                fontFamily: "'Roboto Mono', monospace"
+              }}>
+                Collection: {nftData.collection}
+              </div>
+              <div style={{ 
+                fontSize: '10px',
+                marginTop: '4px',
+                fontStyle: 'italic',
+                color: '#666',
+                fontFamily: "'Roboto Mono', monospace"
+              }}>
+                Cette chimère a été adoptée
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Layer-Texte - Avec les indications selon le type et état */}
+        <div className="layer-text" style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          padding: '8px',
+          zIndex: 4,
+          border: debug ? '2px solid red' : 'none' // Bordure rouge en mode debug
+        }}>
+          {debug ? (
+            // Affichage en mode debug
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              width: '100%',
+              flexDirection: 'column'
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                width: '100%'
+              }}>
+                <div style={{ fontWeight: 'bold', fontSize: '11px', color: 'white', textShadow: '0 0 2px black' }}>
+                  #{container.id}
+                </div>
+                <div style={{ fontSize: '10px', color: 'white', textShadow: '0 0 2px black' }}>
+                  ({container.col}, {container.row})
+                </div>
+              </div>
+              <div style={{ 
+                marginTop: '4px',
+                fontSize: '10px', 
+                color: 'white', 
+                backgroundColor: container.type === ContainerType.ADOPTED ? 'rgba(235, 87, 87, 0.7)' :
+                                container.type === ContainerType.ADOPT ? 'rgba(242, 201, 76, 0.7)' :
+                                container.type === ContainerType.FREE ? 'rgba(88, 196, 221, 0.7)' :
+                                'rgba(111, 207, 151, 0.7)',
+                textAlign: 'center',
+                padding: '1px 4px',
+                borderRadius: '2px',
+                textShadow: '0 0 1px black'
+              }}>
+                {container.type}
+              </div>
+            </div>
+          ) : (
+            // Affichage normal (hors debug) - solution simplifiée au maximum
+            <div style={{
+              display: 'flex',
+              alignItems: 'center', 
+              justifyContent: 'center',
+              width: '100%',
+              height: '100%'
+            }}>
+              {/* FREE centered text */}
+              {container.type === ContainerType.FREE && !container.isExpanded && (
+                <span style={{
+                  color: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  fontFamily: "'Roboto Mono', monospace",
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  lineHeight: '0.9'
+                }}>
+                  FREE
+                </span>
+              )}
+              
+              {/* ADOPT centered text: "WHERE IS [NAME]?" */}
+              {container.type === ContainerType.ADOPT && !container.isExpanded && (
+                <span style={{
+                  color: 'black', /* Noir pour ADOPT uniquement */
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  fontFamily: "'Roboto Mono', monospace",
+                  textAlign: 'center',
+                  lineHeight: '0.9'
+                }}>
+                  WHERE IS {nftData.name.split(' #')[0]}?
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+  
+  // Rendu d'un panel pour un container donné
+  const renderPanel = (containerId: number, panel: PanelData) => {
+    const container = containers.find(c => c.id === containerId);
+    if (!container) return null;
+    
+    // Récupérer les données NFT pour ce container
+    const nftData = getNFTDataForContainer(container.id, container.type);
+    
+    // Récupérer l'URL de l'image NFT
+    const imageUrl = getImageForContainerType(container.type);
+    
+    // Calculer les limites de la zone visible
+    const { startCol, startRow } = getVisibleBounds();
+    
+    // Position horizontale du panel (collé à droite du container)
+    const adjustedCol = container.col - startCol;
+    const left = (adjustedCol * (CONTAINER_SIZE + CONTAINER_GAP)) + 
+                columnOffsets[container.col] + 
+                CONTAINER_SIZE + 
+                CONTAINER_GAP;
+    
+    // Position verticale du container avec ses décalages
+    const adjustedRow = container.row - startRow;
+    const containerShift = verticalShifts.get(container.id) || 0;
+    const containerTopPosition = adjustedRow * (CONTAINER_SIZE + CONTAINER_GAP) + containerShift;
+    
+    // Si le container a une expansion vers le haut, prendre en compte son offset
+    const expansionOffset = container.isExpanded && container.expansionType === ContainerExpansionType.ONEONE_UP
+      ? EXPANSIONS[ContainerExpansionType.ONEONE_UP].offsetTop
+      : 0;
+    
+    // Position verticale finale du panel (même que le container)
+    const top = containerTopPosition + expansionOffset;
+    
+    // Hauteur totale de la grille visible
+    const totalVisibleHeight = VISIBLE_ROWS * (CONTAINER_SIZE + CONTAINER_GAP);
+    
+    // Le panel s'étend du haut au bas de la grille, avec une hauteur minimale de la hauteur visible restante
+    // mais il commence toujours à la même position que son container parent
+    const gridHeight = Math.max(totalVisibleHeight - top, CONTAINER_SIZE * 2);
+    
+    return (
+      <div
+        key={`panel-${containerId}`}
+        className="panel"
+        style={{
+          width: PANEL_WIDTH,
+          height: gridHeight,
+          backgroundColor: '#ffffff',
+          position: 'absolute',
+          left,
+          top,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          borderRadius: '4px',
+          transition: 'all 0.3s ease-out',
+          zIndex: 10,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          fontFamily: "'Roboto Mono', monospace"
+        }}
+      >
+        {/* Zone d'image en premier (plus minimaliste) */}
+        <div style={{
+          width: '100%',
+          height: '240px',
+          backgroundImage: `url(${imageUrl})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          position: 'relative'
+        }}>
+          {/* Bouton de fermeture flottant */}
+          <button 
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: 'rgba(255,255,255,0.8)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '28px',
+              height: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#333',
+              fontSize: '14px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}
+            onClick={() => togglePanel(containerId)}
+          >
+            ✕
+          </button>
+        </div>
+        
+        {/* En-tête du panel minimal */}
+        <div style={{
+          padding: '16px 16px 12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid rgba(0,0,0,0.05)'
+        }}>
+          <h3 style={{ 
+            margin: 0, 
+            fontSize: '13px',
+            fontWeight: 'bold',
+            color: '#333',
+            lineHeight: '0.9'
+          }}>
+            {nftData.name}
+          </h3>
+          
+          <div style={{ 
+            fontSize: '11px',
+            fontWeight: 'bold',
+            color: container.type === ContainerType.FREE ? '#FF26BE' : 
+                   container.type === ContainerType.ADOPT ? '#F2C94C' : '#EB5757',
+            lineHeight: '0.9'
+          }}>
+            {nftData.price}
+          </div>
+        </div>
+        
+        {/* Référence et collection */}
+        <div style={{
+          padding: '10px 16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid rgba(0,0,0,0.05)',
+          fontSize: '11px',
+          color: '#777',
+          lineHeight: '0.9'
+        }}>
+          <div>{nftData.reference}</div>
+          <div>{nftData.collection}</div>
+        </div>
+        
+        {/* Zone de contenu */}
+        <div style={{
+          backgroundColor: 'white',
+          padding: '14px',
+          flex: 1,
+          overflow: 'auto'
+        }}>
+          {/* Description directement sans titre */}
+          <p style={{ 
+            fontSize: '12px', 
+            lineHeight: '0.9',
+            color: '#555', 
+            margin: '0 0 14px 0'
+          }}>
+            {nftData.description}
+          </p>
+          
+          {debug && (
+            <div style={{ 
+              marginTop: '20px', 
+              padding: '8px', 
+              backgroundColor: '#f9f9f9',
+              fontSize: '11px',
+              color: '#999',
+              borderRadius: '4px'
+            }}>
+              <p style={{margin: '3px 0'}}>Position: (Col {container.col}, Row {container.row})</p>
+              <p style={{margin: '3px 0'}}>Type: {container.expansionType}</p>
+              <p style={{margin: '3px 0'}}>ID: #{containerId}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+  
+  // Fonction pour rendre une cellule vide à une position donnée
+  const renderEmptyCell = (col: number, row: number) => {
+    const { startCol, startRow } = getVisibleBounds();
+    
+    // Ajuster les positions par rapport à notre zone visible
+    const adjustedCol = col - startCol;
+    const adjustedRow = row - startRow;
+    
+    // Calculer la position avec décalage de colonne (horizontal)
+    const left = (adjustedCol * (CONTAINER_SIZE + CONTAINER_GAP)) + columnOffsets[col];
+    const top = adjustedRow * (CONTAINER_SIZE + CONTAINER_GAP);
+    
+    return (
+      <div
+        key={`empty-${col}-${row}`}
+        style={{
+          width: CONTAINER_SIZE,
+          height: CONTAINER_SIZE,
+          backgroundColor: '#ffffff',
+          border: '1px solid #f0f0f0',
+          position: 'absolute',
+          left,
+          top,
+          zIndex: 0
+        }}
+      />
+    );
+  };
+  
+  // Rendu de la grille complète en plein écran
+  return (
+    <div className="grille-chimerique" style={{ 
+      position: 'fixed',
+      inset: 0,
+      overflow: 'hidden',
+      backgroundColor: '#ffffff'
+    }}>
+      <div 
+        className="viewport" 
+        style={{ 
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          cursor: 'grab'
+        }}
+        onMouseDown={handleViewportMouseDown}
+      >
+        {/* Cellules vides pour visualiser la grille entière */}
+        {(() => {
+          const cells = [];
+          const { startCol, startRow, endCol, endRow } = getVisibleBounds();
+          
+          // Générer toutes les cellules vides dans la zone visible
+          for (let col = startCol; col < endCol; col++) {
+            for (let row = startRow; row < endRow; row++) {
+              // Vérifier s'il n'y a pas déjà un container à cette position
+              const hasContainer = containers.some(c => c.col === col && c.row === row);
+              
+              if (!hasContainer) {
+                cells.push(renderEmptyCell(col, row));
+              }
+            }
+          }
+          
+          return cells;
+        })()}
+        
+        {/* Containers visibles dans la zone d'affichage actuelle */}
+        {containers.map(container => {
+          // Vérifier si le container est dans la zone visible
+          const { startCol, startRow, endCol, endRow } = getVisibleBounds();
+          if (container.col < startCol || container.col >= endCol || 
+              container.row < startRow || container.row >= endRow) {
+            return null; // Ne pas afficher les containers hors de la zone visible
+          }
+          return renderContainer(container);
+        })}
+        
+        {/* Panels pour les containers qui en ont */}
+        {Array.from(panels.entries())
+          .filter(([_, panel]) => panel.isOpen)
+          .map(([containerId, panel]) => {
+            // Vérifier si le container associé est visible
+            const container = containers.find(c => c.id === Number(containerId));
+            if (!container) return null;
+            
+            const { startCol, startRow, endCol, endRow } = getVisibleBounds();
+            if (container.col < startCol || container.col >= endCol) {
+              return null; // Ne pas afficher les panels dont le container est hors de la zone visible horizontale
+            }
+            
+            return renderPanel(Number(containerId), panel);
+          })
+        }
+        
+        {/* Overlay de debug (activable avec la touche 'd') */}
+        {debug && (
+          <div style={{
+            position: 'absolute',
+            bottom: 10,
+            right: 10,
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            color: '#fff',
+            padding: '10px',
+            fontSize: '12px',
+            maxWidth: '300px',
+            zIndex: 1000
+          }}>
+            <div>Mode Debug (touche 'd')</div>
+            <div>Centre vue: ({viewCenter.col}, {viewCenter.row})</div>
+            <div>Containers: {containers.length}</div>
+            <div>Panels ouverts: {Array.from(panels.values()).filter(p => p.isOpen).length}</div>
+            <div>Déplacez la vue avec le clic gauche et le glisser</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
