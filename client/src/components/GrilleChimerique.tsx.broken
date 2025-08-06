@@ -1,0 +1,1305 @@
+import { useState, useEffect, useRef, MouseEvent } from "react";
+import { Container } from "@/components/Container";
+import { CustomCursor } from "@/components/CustomCursor";
+import { Panel } from "@/components/Panel"; // Importation du Panel simple
+import { usePanelManager } from "@/components/PanelManager"; // Importation du gestionnaire de panels
+import { chimeresData } from "@/data/chimeresData";
+import { images } from "@/assets/images";
+// Importations centralisées des types
+import { 
+  ContainerState, 
+  ContainerType, 
+  CursorType, 
+  ContainerData,
+  Position,
+  PanelInfo
+} from "@/types/common";
+import { ChimereData, PanelConfig, PanelTab } from "@/types/chimereTypes";
+
+export function GrilleChimerique() {
+  // Configuration de la taille de la grille
+  const GRID_SIZE = 32; // Grille 32x32 = 1024 containers (~1000)
+  const CONTAINER_SIZE = 128; // Taille d'un container
+  const CONTAINER_SPACING = 4; // Espacement entre les containers
+  const GRID_CENTER = { x: 16, y: 16 }; // Centre de la grille (coordonnées 16,16)
+  const PANEL_WIDTH = 392; // Largeur des panels (384px + 2*4px d'espacement)
+  
+  const [containers, setContainers] = useState<ContainerData[]>([]);
+  // Position initiale (sera centrée par useEffect)
+  const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<Position>({ x: 0, y: 0 });
+  const [cursorPosition, setCursorPosition] = useState<Position>({ x: 0, y: 0 });
+  const [isOverClickZone, setIsOverClickZone] = useState(false);
+  const [cursorType, setCursorType] = useState<CursorType>(CursorType.GRAB);
+  const [hoveredContainer, setHoveredContainer] = useState<ContainerData | null>(null);
+  
+  // Flag pour forcer un re-rendu quand les décalages changent
+  const [forceRender, setForceRender] = useState(0);
+  
+  // Panels actifs par container ID (un seul panel par container)
+  const [activePanels, setActivePanels] = useState<Map<number, PanelInfo>>(new Map());
+  
+  // Map pour stocker les décalages spécifiques à chaque container
+  // Map: containerID => décalage en pixels
+  const [containerShifts, setContainerShifts] = useState<Map<number, number>>(new Map());
+  
+  // Mode debug pour visualiser les zones d'interaction
+  const [debugMode, setDebugMode] = useState(true); // Temporairement activé pour vérifier les zones
+  
+  const gridRef = useRef<HTMLDivElement>(null);
+  
+  // Gestion des touches clavier (mode debug et ajout de conteneurs)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Touche 'D' pour activer/désactiver le mode debug
+      if (e.key.toLowerCase() === 'd') {
+        setDebugMode(prev => !prev);
+        console.log(`Mode debug ${!debugMode ? 'activé' : 'désactivé'}`);
+      }
+      
+      // Touche 'A' pour ajouter un nouveau container (disponible seulement en mode debug)
+      if (e.key.toLowerCase() === 'a' && debugMode) {
+        // Ajouter un nouveau container au centre (0,0) de la grille
+        
+        // Choisir un type aléatoire pour le container
+        const types = [
+          ContainerType.ADOPT,
+          ContainerType.ADOPTED,
+          ContainerType.FREE,
+          ContainerType.EDITORIAL
+        ];
+        const randomType = types[Math.floor(Math.random() * types.length)];
+        
+        // Générer un titre pour les containers éditoriaux
+        let title: string | undefined = undefined;
+        if (randomType === ContainerType.EDITORIAL) {
+          // Utiliser seulement 2 titres, correspondant à nos 2 images éditoriales
+          // Un nombre aléatoire déterminera quelle image est utilisée (pair ou impair)
+          const useSecondTitle = Math.random() > 0.5;
+          const editorialTitles = ["YHOM NEWS", "ÉDITO"];
+          title = editorialTitles[useSecondTitle ? 1 : 0];
+        }
+        
+        setContainers(prev => {
+          // Trouver le prochain ID disponible
+          const nextId = Math.max(...prev.map(c => c.id), 0) + 1;
+          
+          // Créer le nouveau container
+          const newContainer: ContainerData = {
+            id: nextId,
+            state: ContainerState.CLOSED,
+            type: randomType,
+            position: { x: GRID_CENTER.x, y: GRID_CENTER.y },
+            // Pour les containers éditoriaux, stocker l'index d'image dans l'ID
+            // afin de pouvoir utiliser une image cohérente
+            title,
+            // Définir une clé pour forcer le remontage si nécessaire
+            key: Date.now()
+          };
+          
+          // Nous utiliserons un algorithme plus précis pour insérer en spirale
+          // Nous décalerons chaque élément à la position suivante dans la spirale
+          
+          // D'abord, collectons toutes les coordonnées actuelles et créons un mapping 
+          // pour savoir quels conteneurs sont à quelles positions
+          const positionMap = new Map<string, ContainerData>();
+          prev.forEach(container => {
+            if (container.position) {
+              const key = `${container.position.x},${container.position.y}`;
+              positionMap.set(key, container);
+            }
+          });
+          
+          // Générons les coordonnées en spirale pour tous les éléments + 1 (pour le nouveau)
+          // en commençant par le centre puis en spiralant vers l'extérieur
+          const spiralCoordinates = generateSpiralCoordinates(prev.length + 1);
+          
+          // Le premier élément (au centre) sera notre nouvel élément
+          // Les autres seront les éléments existants, en suivant l'ordre spiral
+          const newContainers: ContainerData[] = [newContainer];
+          
+          // Pour chaque position dans la spirale (sauf la première qui est le nouveau conteneur)
+          for (let i = 1; i < spiralCoordinates.length; i++) {
+            const pos = spiralCoordinates[i];
+            
+            // Trouver le conteneur qui était à la position précédente dans la spirale
+            const prevPos = spiralCoordinates[i-1];
+            const prevKey = `${prevPos.x},${prevPos.y}`;
+            
+            let containerToMove: ContainerData | undefined;
+            
+            // Si c'est la première position (après le centre), prenons n'importe quel conteneur
+            // existant car c'est juste pour commencer à remplir la spirale
+            if (i === 1) {
+              // Prenons le premier conteneur qui n'est pas le nouveau
+              containerToMove = prev[0];
+            } else {
+              // Sinon, trouvons le conteneur qui est à la position précédente
+              containerToMove = positionMap.get(prevKey);
+            }
+            
+            // Si on a trouvé un conteneur, le déplacer à la nouvelle position
+            if (containerToMove) {
+              newContainers.push({
+                ...containerToMove,
+                position: { x: pos.x, y: pos.y }
+              });
+            }
+          }
+          
+          console.log(`Nouveau container de type ${randomType} ajouté et ${newContainers.length - 1} existants déplacés suivant la spirale`);
+          return newContainers;
+        });
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [debugMode]);
+  
+  // Référence pour suivre si la grille a déjà été centrée
+  const hasBeenCentered = useRef(false);
+  
+  // Centrer la grille UNIQUEMENT au chargement initial
+  useEffect(() => {
+    if (gridRef.current && containers.length > 0 && !hasBeenCentered.current) {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Calculer la position pour centrer la vue sur le centre de la grille
+      const centerX = -(GRID_CENTER.x * (CONTAINER_SIZE + CONTAINER_SPACING)) + (viewportWidth / 2);
+      const centerY = -(GRID_CENTER.y * (CONTAINER_SIZE + CONTAINER_SPACING)) + (viewportHeight / 2);
+      
+      setPosition({ x: centerX, y: centerY });
+      
+      // Marquer comme déjà centré pour ne pas ré-exécuter
+      hasBeenCentered.current = true;
+      console.log("Grille centrée au chargement initial");
+    }
+  }, [containers.length, CONTAINER_SIZE, CONTAINER_SPACING, GRID_CENTER]);
+  
+  // Fonction pour générer les coordonnées en spirale pour N conteneurs
+  const generateSpiralCoordinates = (count: number) => {
+    const coordinates: {x: number, y: number}[] = [];
+    
+    // Le premier est au centre exact de la grille (16,16)
+    coordinates.push({ x: GRID_CENTER.x, y: GRID_CENTER.y });
+    
+    if (count <= 1) return coordinates;
+    
+    // Direction: 0=droite, 1=bas, 2=gauche, 3=haut
+    let direction = 0;
+    // Taille du segment actuel
+    let segmentLength = 1;
+    // Segments complétés dans la direction actuelle
+    let segmentsCompleted = 0;
+    
+    // Position actuelle (commence au centre de la grille)
+    let x = GRID_CENTER.x, y = GRID_CENTER.y;
+    
+    // Pour chaque position restante
+    for (let i = 1; i < count; i++) {
+      // Mise à jour de la position selon la direction
+      switch (direction) {
+        case 0: // Droite
+          x += 1;
+          break;
+        case 1: // Bas
+          y += 1;
+          break;
+        case 2: // Gauche
+          x -= 1;
+          break;
+        case 3: // Haut
+          y -= 1;
+          break;
+      }
+      
+      // Ajouter la nouvelle position
+      coordinates.push({ x, y });
+      
+      // Vérifier si un segment est terminé
+      segmentsCompleted++;
+      if (segmentsCompleted === segmentLength) {
+        // Changer de direction
+        direction = (direction + 1) % 4;
+        segmentsCompleted = 0;
+        
+        // Augmenter la longueur du segment tous les 2 changements de direction
+        if (direction === 0 || direction === 2) {
+          segmentLength++;
+        }
+      }
+    }
+    
+    return coordinates;
+  };
+  
+  // Initialize containers with spiral positioning
+  useEffect(() => {
+    // Limites pour la grille spirale
+    const MAX_ACTIVE_CONTAINERS = 100; // Maximum de containers actifs
+    const INITIAL_ACTIVE_COUNT = 80; // Nombre initial de containers actifs (~80 comme demandé)
+    const TOTAL_CONTAINERS = GRID_SIZE * GRID_SIZE; // Nombre total de containers dans la grille 32x32 = 1024
+    const EDITORIAL_PERCENTAGE = 0.25; // 25% des containers actifs sont éditoriaux
+    
+    // Calculer le nombre initial de containers NFT et éditoriaux
+    const editorialCount = Math.floor(INITIAL_ACTIVE_COUNT * EDITORIAL_PERCENTAGE);
+    const nftCount = INITIAL_ACTIVE_COUNT - editorialCount;
+    
+    // Types possibles pour les containers NFT avec répartition contrôlée
+    // 40% ADOPT, 35% ADOPTED, 25% FREE
+    const containerTypes = [
+      ...Array(4).fill(ContainerType.ADOPT),
+      ...Array(3).fill(ContainerType.ADOPTED),
+      ...Array(3).fill(ContainerType.FREE),
+    ];
+    
+    // Générer les positions pour tous les containers dans la grille 32x32
+    const spiralCoordinates = generateSpiralCoordinates(TOTAL_CONTAINERS);
+    
+    // Créer les containers avec distribution appropriée
+    const initialContainers: ContainerData[] = spiralCoordinates.map((pos, index) => {
+      // Les premiers 'nftCount' containers sont des NFTs
+      if (index < nftCount) {
+        const randomTypeIndex = Math.floor(Math.random() * containerTypes.length);
+        return {
+          id: index,
+          state: ContainerState.CLOSED,
+          type: containerTypes[randomTypeIndex],
+          position: pos
+        };
+      } 
+      // Les containers suivants jusqu'à INITIAL_ACTIVE_COUNT sont éditoriaux
+      else if (index < INITIAL_ACTIVE_COUNT) {
+        // Utiliser seulement 2 titres, un pour chaque image éditoriale
+        const editorialTitles = ["YHOM NEWS", "ÉDITO"];
+        // Utiliser l'index pour alterner entre les titres (0 et 1)
+        const titleIndex = index % 2;
+        
+        return {
+          id: index,
+          state: ContainerState.CLOSED,
+          type: ContainerType.EDITORIAL,
+          position: pos,
+          url: "#", // URL placeholder
+          title: editorialTitles[titleIndex]
+        };
+      } 
+      // Tous les autres containers sont des inactifs (pour compléter la grille 32x32)
+      else {
+        return {
+          id: index,
+          state: ContainerState.CLOSED,
+          type: ContainerType.INACTIVE,
+          position: pos
+        };
+      }
+    });
+    
+    setContainers(initialContainers);
+  }, []);
+
+  // Handle toggling container state
+  const toggleContainer = (id: number) => {
+    // Recherche d'un identifiant unique pour forcer un remontage du component
+    const now = Date.now();
+    
+    setContainers(prevContainers => {
+      return prevContainers.map(container => {
+        if (container.id === id) {
+          // Si le container est inactif, ne rien faire
+          if (container.type === ContainerType.INACTIVE) {
+            return container;
+          }
+          
+          // Si le container est fermé, l'ouvrir selon son type
+          if (container.state === ContainerState.CLOSED) {
+            // Définir l'état en fonction du type
+            let newState = ContainerState.CLOSED;
+            if (container.type === ContainerType.ADOPT) {
+              newState = ContainerState.ADOPT;
+            } else if (container.type === ContainerType.ADOPTED) {
+              newState = ContainerState.ADOPTED;
+            } else if (container.type === ContainerType.FREE) {
+              newState = ContainerState.FREE;
+            } else if (container.type === ContainerType.EDITORIAL) {
+              // Pour les conteneurs éditoriaux, on utilise l'état FREE
+              // ce qui permettra d'avoir un comportement similaire visuellement
+              newState = ContainerState.FREE;
+              
+              // Si une URL est définie, on pourrait également l'ouvrir dans un nouvel onglet
+              if (container.url && container.url !== "#") {
+                window.open(container.url, '_blank');
+              }
+            }
+            
+            return {
+              ...container,
+              state: newState
+            };
+          } else {
+            // Si le container est ouvert, le fermer
+            // Désactivons toutes les animations temporairement
+            document.body.classList.add('no-animations');
+            
+            // Forcer un refresh complet pour désactiver les effets persistants
+            setTimeout(() => {
+              document.body.classList.remove('no-animations');
+            }, 300);
+            
+            return {
+              ...container,
+              state: ContainerState.CLOSED,
+              // Ajouter une clé unique pour forcer un remontage complet du container
+              key: now
+            };
+          }
+        }
+        return container;
+      });
+    });
+  };
+
+  // Calculer la position dans la grille
+  const getGridPosition = (container: ContainerData) => {
+    // Si le container a une position spirale, l'utiliser directement car elle est déjà en coordonnées absolues
+    if (container.position) {
+      // Dans notre nouvelle approche, les positions sont déjà des coordonnées absolues (0 à GRID_SIZE-1)
+      // Avec le centre en (16,16) pour une grille 32x32
+      const row = container.position.y;
+      const col = container.position.x;
+      return { row, col };
+    } 
+    // Sinon, utiliser l'ancienne méthode basée sur l'ID
+    else {
+      const row = Math.floor(container.id / GRID_SIZE);
+      const col = container.id % GRID_SIZE;
+      return { row, col };
+    }
+  };
+  
+  // Retrouver l'ID du container à partir de l'index de colonne
+  const getContainerIdFromColumn = (columnIndex: number) => {
+    // On cherche le container qui correspond à cet index de colonne
+    // Calculer la ligne et la colonne à partir de l'index
+    const col = columnIndex % GRID_SIZE;
+    // On utilise la première ligne pour les démonstrations
+    const row = 0;
+    
+    // Calculer l'ID à partir de la position dans la grille
+    const containerId = row * GRID_SIZE + col;
+    
+    // Vérifier que le container existe
+    const containerExists = containers.some(c => c.id === containerId);
+    
+    // Retourner l'ID si le container existe, sinon retourner un ID par défaut
+    return containerExists ? containerId : 0;
+  };
+
+  // Calculer les décalages horizontaux pour chaque container affecté par un panel
+  const calculateContainerShifts = () => {
+    // Créer une Map pour stocker les décalages de chaque container
+    const newShifts = new Map<number, number>();
+    
+    // Si aucun panel n'est actif, retourner une Map vide
+    if (activePanels.size === 0) {
+      console.log("Aucun panel actif - pas de décalage");
+      return newShifts;
+    }
+    
+    console.log("Panels actifs:", Array.from(activePanels.keys()));
+    
+    // Pour chaque container avec un panel...
+    activePanels.forEach((panelInfo, panelContainerId) => {
+      // Trouver le container avec le panel
+      const panelContainer = containers.find(c => c.id === panelContainerId);
+      if (!panelContainer || !panelContainer.position) {
+        console.error("Container avec panel introuvable:", panelContainerId);
+        return;
+      }
+      
+      console.log(`Calcul des décalages pour le panel du container ${panelContainerId}`);
+      
+      // Obtenir la position du container avec panel
+      const panelGridPos = getGridPosition(panelContainer);
+      console.log(`Position du container avec panel: row=${panelGridPos.row}, col=${panelGridPos.col}`);
+      
+      // Pour chaque container...
+      containers.forEach(container => {
+        if (!container.position) return;
+        
+        const containerGridPos = getGridPosition(container);
+        
+        // Tout container dont la colonne est supérieure à celle du panel doit être décalé
+        // Cela inclut le panel lui-même s'il a déjà été décalé par un autre panel
+        if (containerGridPos.col > panelGridPos.col) {
+          // Si le container a déjà un décalage, on l'additionne
+          const currentShift = newShifts.get(container.id) || 0;
+          const newShift = currentShift + PANEL_WIDTH;
+          newShifts.set(container.id, newShift);
+          
+          console.log(`Container ${container.id} (row=${containerGridPos.row}, col=${containerGridPos.col}) décalé de ${newShift}px`);
+        }
+      });
+    });
+    
+    // Si on a des décalages, journaliser un récapitulatif
+    if (newShifts.size > 0) {
+      console.log(`${newShifts.size} containers décalés au total`);
+    }
+    
+    return newShifts;
+  };
+  
+  // Système de scan de la grille pour déterminer quels éléments déplacer
+  // basé sur les coordonnées croisées comme au Touché-Coulé
+  const scanGridAndGetShift = (containerId: number) => {
+    // Si aucun panel n'est actif, aucun décalage
+    if (activePanels.size === 0) {
+      return 0;
+    }
+    
+    // Trouver le container courant
+    const targetContainer = containers.find(c => c.id === containerId);
+    if (!targetContainer || !targetContainer.position) {
+      return 0;
+    }
+    
+    // Position du container dans la grille
+    const targetPos = getGridPosition(targetContainer);
+    
+    // Pour chaque panel actif, comptons combien sont à gauche de ce container
+    let numberOfPanelsToLeft = 0;
+    
+    // Trier les panels par colonne (de gauche à droite)
+    const sortedPanels = Array.from(activePanels.entries())
+      .map(([panelId, panelInfo]) => {
+        const panelContainer = containers.find(c => c.id === panelId);
+        if (!panelContainer || !panelContainer.position) return null;
+        
+        const panelPos = getGridPosition(panelContainer);
+        return { panelId, col: panelPos.col, row: panelPos.row };
+      })
+      .filter(panel => panel !== null)
+      .sort((a, b) => a!.col - b!.col);
+    
+    console.log("Panels actifs triés par colonne:", sortedPanels);
+    
+    // Compter combien de panels sont à gauche de ce container
+    sortedPanels.forEach(panel => {
+      if (panel && panel.col < targetPos.col) {
+        numberOfPanelsToLeft++;
+        console.log(`Container ${containerId} (${targetPos.row},${targetPos.col}) a un panel à sa gauche: panel ${panel.panelId} (col=${panel.col})`);
+      }
+    });
+    
+    // Le décalage total est le nombre de panels à gauche multiplié par la largeur du panel
+    const totalShift = numberOfPanelsToLeft * (PANEL_WIDTH + 4);
+    
+    if (totalShift > 0) {
+      console.log(`Container ${containerId} (${targetPos.row},${targetPos.col}) décalé de ${totalShift}px au total`);
+    }
+    
+    return totalShift;
+  };
+  
+  // Utiliser notre système de scan pour obtenir le décalage
+  const getHorizontalShift = (containerId: number) => {
+    return scanGridAndGetShift(containerId);
+  };
+  
+  // FONCTION SIMPLIFIÉE DE SYNCHRONISATION DES PANELS
+  // Reconstruit complètement la position de tous les panels
+  const synchronizePanels = () => {
+    console.log("=== SYNCHRONISATION SIMPLIFIÉE DES PANELS ===");
+    
+    // Si aucun panel, nettoyer les décalages et sortir
+    if (activePanels.size === 0) {
+      console.log("Aucun panel actif - nettoyage des décalages");
+      setContainerShifts(new Map());
+      setForceRender(prev => prev + 1);
+      return;
+    }
+    
+    // Récupérer tous les IDs de panels actifs
+    const panelIds = Array.from(activePanels.keys());
+    
+    // Créer un tableau de tous les containers qui ont un panel actif
+    const panelContainers = panelIds
+      .map(id => containers.find(c => c.id === id))
+      .filter(c => c !== undefined && c.position !== undefined) as ContainerData[];
+    
+    // Trier les containers par position horizontale (colonne)
+    const sortedContainers = [...panelContainers].sort((a, b) => {
+      const posA = getGridPosition(a);
+      const posB = getGridPosition(b);
+      return posA.col - posB.col;
+    });
+      
+      console.log("Containers triés pour panels:", sortedContainers);
+      
+      // 4. Recréer les panels avec des positions séquentielles sans chevauchement
+      const newPanels = new Map<number, PanelInfo>();
+      
+      // Pour chaque container, créer un panel avec une position calculée
+      sortedContainers.forEach((container, index) => {
+        if (!container || !container.position) return;
+        
+        // Récupérer la position du container dans la grille
+        const gridPos = getGridPosition(container);
+        
+        // Position de base du container (sans décalage)
+        const containerLeft = gridPos.col * (CONTAINER_SIZE + CONTAINER_SPACING);
+        
+        // Position horizontale du panel
+        // Chaque panel est positionné avec un espacement fixe par rapport à sa colonne
+        // Plus important: on ajoute un grand décalage (420px) pour chaque panel précédent
+        const panelLeft = containerLeft + CONTAINER_SIZE + 20 + (index * 420); 
+        
+        // Position verticale - légèrement décalée vers le haut
+        const panelTop = Math.max(0, gridPos.row * (CONTAINER_SIZE + CONTAINER_SPACING) - 64);
+        
+        console.log(`Panel ${container.id} (index ${index}) positionné à (${panelLeft}, ${panelTop})`);
+        
+        // Créer les infos du panel
+        newPanels.set(container.id, {
+          columnIndex: gridPos.col,
+          position: {
+            left: panelLeft,
+            top: panelTop
+          }
+        });
+      });
+        
+        const gridPos = getGridPosition(container);
+        
+        // Position de base (sans décalage)
+        const baseLeft = (gridPos.col * (CONTAINER_SIZE + CONTAINER_SPACING)) + CONTAINER_SIZE + CONTAINER_SPACING;
+        
+        // Le décalage est basé sur l'index (nombre de panels à gauche)
+        const shiftAmount = index * (PANEL_WIDTH + 4);
+        
+        const finalLeft = baseLeft + shiftAmount;
+        
+        console.log(`Panel ${container.id} (col=${gridPos.col}): index=${index}, baseLeft=${baseLeft}, shiftAmount=${shiftAmount}, finalLeft=${finalLeft}`);
+        
+        // Position verticale du panel
+        const panelTop = gridPos.row * (CONTAINER_SIZE + CONTAINER_SPACING);
+        
+        // Ajouter le panel avec sa nouvelle position calculée
+        newPanels.set(container.id, {
+          columnIndex: gridPos.col,
+          position: {
+            left: finalLeft,
+            top: panelTop
+          }
+        });
+      
+      // 5. Mettre à jour d'un coup tous les panels
+      setActivePanels(newPanels);
+      
+      // 6. Recalculer tous les décalages des containers
+      const newShifts = calculateContainerShifts();
+      setContainerShifts(newShifts);
+      
+      // 7. Force l'ensemble de l'application à se mettre à jour
+      setForceRender(prev => prev + 1);
+      
+      console.log("=== FIN DE LA SYNCHRONISATION ===");
+    }, 50); // Délai court pour s'assurer que les états sont bien mis à jour
+  };
+  
+  // Nous n'utiliserons plus d'effet pour mettre à jour les décalages
+  // Au lieu de cela, nous calculerons les décalages directement lors du rendu
+
+  // Déterminer si un container doit être décalé vers le bas
+  const shouldShiftDown = (id: number) => {
+    // Trouver le container par ID
+    const container = containers.find(c => c.id === id);
+    if (!container) return 0;
+    
+    const { row, col } = getGridPosition(container);
+    let shift = 0;
+
+    // Check all containers in the same column above this one
+    for (let r = 0; r < row; r++) {
+      // Trouver les containers au-dessus basés sur leur position en grille
+      const upperContainers = containers.filter(c => {
+        if (!c.position) return false;
+        const pos = getGridPosition(c);
+        return pos.row === r && pos.col === col;
+      });
+      
+      for (const upperContainer of upperContainers) {
+        // Si le container supérieur est de type FREE, il pousse vers le bas de +132px exactement
+        if (upperContainer.state === ContainerState.FREE) {
+          shift += 132; // Exactement 132px de décalage (260/2)
+        }
+        // Si le container supérieur est de type ADOPT, il pousse vers le bas de +64px exactement
+        else if (upperContainer.state === ContainerState.ADOPT) {
+          shift += 64; // Exactement 64px de décalage (192/2 - 128/2)
+        }
+      }
+    }
+
+    return shift;
+  };
+
+  // Déterminer si un container doit être décalé vers le haut
+  const shouldShiftUp = (id: number) => {
+    // Trouver le container par ID
+    const container = containers.find(c => c.id === id);
+    if (!container) return 0;
+    
+    const { row, col } = getGridPosition(container);
+    let shift = 0;
+
+    // Check all containers in the same column below this one
+    for (let r = row + 1; r < GRID_SIZE; r++) {
+      // Trouver les containers en-dessous basés sur leur position en grille
+      const lowerContainers = containers.filter(c => {
+        if (!c.position) return false;
+        const pos = getGridPosition(c);
+        return pos.row === r && pos.col === col;
+      });
+      
+      for (const lowerContainer of lowerContainers) {
+        // Si le container inférieur est de type ADOPTED, il pousse vers le haut
+        if (lowerContainer.state === ContainerState.ADOPTED) {
+          shift += 132; // Pousse exactement comme un FREE mais vers le haut (132px)
+        }
+      }
+    }
+
+    return shift;
+  };
+  
+  // Gestion du déplacement de la grille (drag)
+  const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
+    // Vérifier si on est sur un élément avec un attribut data-cursor-type
+    const element = e.target as HTMLElement;
+    const cursorTypeAttribute = element.getAttribute('data-cursor-type');
+    
+    // Activer le drag si:
+    // 1. On est sur un élément sans attribut data-cursor-type, OU
+    // 2. L'attribut est explicitement "grab"
+    if (!cursorTypeAttribute || cursorTypeAttribute === CursorType.GRAB) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    }
+  };
+  
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    // Mise à jour de la position du curseur pour le style
+    setCursorPosition({ x: e.clientX, y: e.clientY });
+    
+    // Gestion du déplacement de la grille
+    if (isDragging) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      setPosition({ x: newX, y: newY });
+    }
+    
+    // APPROCHE UNIFORME pour la détection du curseur
+    const element = e.target as HTMLElement;
+    const cursorTypeAttribute = element.getAttribute('data-cursor-type');
+    
+    if (cursorTypeAttribute) {
+      // Si l'élément a un attribut data-cursor-type, utiliser ce type
+      setCursorType(cursorTypeAttribute as CursorType);
+      // Mettre à jour isOverClickZone pour empêcher le drag quand on survole un élément cliquable
+      setIsOverClickZone(cursorTypeAttribute !== CursorType.GRAB);
+    } else {
+      // Sinon, utiliser GRAB comme fallback et permettre le drag
+      setCursorType(CursorType.GRAB);
+      setIsOverClickZone(false);
+    }
+    
+    // On appelle quand même checkIfOverClickZone pour d'autres fonctionnalités
+    // comme la détection du conteneur survolé
+    checkIfOverClickZone(e);
+  };
+  
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+  
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+  
+  // NOUVELLE FONCTION: détecte le type de curseur à partir des attributs data-cursor-type
+  const detectCursorTypeFromElement = (clientX: number, clientY: number): CursorType => {
+    // Utiliser document.elementFromPoint pour trouver l'élément exact sous le curseur
+    const elementUnderCursor = document.elementFromPoint(clientX, clientY);
+    
+    // Si l'élément a un attribut data-cursor-type, l'utiliser
+    if (elementUnderCursor && elementUnderCursor.hasAttribute('data-cursor-type')) {
+      const cursorTypeValue = elementUnderCursor.getAttribute('data-cursor-type');
+      if (Object.values(CursorType).includes(cursorTypeValue as CursorType)) {
+        return cursorTypeValue as CursorType;
+      }
+    }
+    
+    // Valeur par défaut si aucun élément spécifique n'est trouvé
+    return CursorType.GRAB;
+  };
+
+  // Fonction réduite : récupération du container survolé uniquement
+  const checkIfOverClickZone = (e: MouseEvent<HTMLDivElement>) => {
+    if (!gridRef.current) return;
+    
+    // Ne pas modifier cursorType ou isOverClickZone ici (géré dans handleMouseMove)
+    
+    // Calcul de la position relative pour trouver le conteneur survolé
+    const gridRect = gridRef.current.getBoundingClientRect();
+    const relX = e.clientX - gridRect.left - position.x;
+    const relY = e.clientY - gridRect.top - position.y;
+    
+    // Calculer dans quel container se trouve le curseur
+    const containerWidth = CONTAINER_SIZE + CONTAINER_SPACING;
+    const containerHeight = CONTAINER_SIZE + CONTAINER_SPACING;
+    const col = Math.floor(relX / containerWidth);
+    const row = Math.floor(relY / containerHeight);
+    
+    // Vérifier si les coordonnées sont valides (dans la grille)
+    if (col >= 0 && col < GRID_SIZE && row >= 0 && row < GRID_SIZE) {
+      const containerIndex = row * GRID_SIZE + col;
+      const currentContainer = containers[containerIndex];
+      
+      // Stocker le container survolé
+      setHoveredContainer(currentContainer);
+    } else {
+      // Si en dehors de la grille
+      setHoveredContainer(null);
+    }
+  };
+  
+  // Gestion de l'ouverture/fermeture des panels
+  const handlePanelToggle = (containerId: number) => {
+    console.log("handlePanelToggle appelé pour containerId:", containerId);
+    
+    // Trouver le container correspondant
+    const targetContainer = containers.find(c => c.id === containerId);
+    if (!targetContainer || !targetContainer.position) {
+      console.error("Container non trouvé ou sans position:", containerId);
+      return;
+    }
+    
+    setActivePanels(prevPanels => {
+      // Vérifier si un panel est déjà actif pour ce container
+      const isAlreadyActive = prevPanels.has(containerId);
+      console.log("Panel déjà actif pour ce container?", isAlreadyActive);
+      
+      // Créer une nouvelle Map des panels
+      const newPanels = new Map(prevPanels);
+      
+      // Si un panel est déjà actif, on le ferme (toggle)
+      if (isAlreadyActive) {
+        console.log("Fermeture du panel existant");
+        newPanels.delete(containerId);
+        
+        // Recalculer les décalages des containers quand on ferme un panel
+        const newShifts = calculateContainerShifts();
+        setContainerShifts(newShifts);
+        
+        console.log("Panel fermé - décalages recalculés");
+        
+        return newPanels;
+      }
+      
+      // Sinon, on crée un nouveau panel
+      
+      // Obtenir la position à laquelle appartient ce container
+      // On a déjà vérifié que targetContainer.position existe dans la condition en début de fonction
+      const containerPosition = targetContainer.position!;
+      const gridPos = getGridPosition(targetContainer);
+      console.log(`Container ${containerId} est à la position (${gridPos.col}, ${gridPos.row})`);
+      
+      // Calculer la position du panel basée sur la position du container
+      // Nous devons tenir compte des panels précédemment ouverts à gauche
+      
+      // AVANT d'ajouter un nouveau panel, on doit calculer le décalage actuel du container
+      // Mais en EXCLUANT ce containerId de la liste des panels actifs pour éviter les doubles comptes
+      
+      // Créer une copie de la Map des panels actifs sans le containerId en cours (pour éviter l'auto-décalage)
+      const tempPanels = new Map(activePanels);
+      tempPanels.delete(containerId);  // Assure qu'on ne compte pas ce conteneur lui-même
+      
+      // Fonction de scan temporaire qui utilise la liste temporaire des panels
+      const getTempShift = (id: number) => {
+        // Si aucun panel temporaire n'est actif, aucun décalage
+        if (tempPanels.size === 0) return 0;
+        
+        // Trouver le container
+        const targetContainer = containers.find(c => c.id === id);
+        if (!targetContainer || !targetContainer.position) return 0;
+        
+        // Position du container dans la grille
+        const targetPos = getGridPosition(targetContainer);
+        
+        // Nombre de panels à gauche
+        let numPanelsToLeft = 0;
+        
+        // Parcourir les panels temporaires triés par colonne
+        Array.from(tempPanels.entries())
+          .map(([panelId, _]) => {
+            const panelContainer = containers.find(c => c.id === panelId);
+            if (!panelContainer || !panelContainer.position) return null;
+            
+            const panelPos = getGridPosition(panelContainer);
+            return { panelId, col: panelPos.col };
+          })
+          .filter(panel => panel !== null)
+          .sort((a, b) => a!.col - b!.col)
+          .forEach(panel => {
+            if (panel && panel.col < targetPos.col) {
+              numPanelsToLeft++;
+            }
+          });
+        
+        return numPanelsToLeft * (PANEL_WIDTH + 4);
+      };
+      
+      // Calculer le décalage actuel avec notre fonction temporaire
+      let currentContainerShift = getTempShift(containerId);
+      
+      console.log(`Container ${containerId} a un décalage actuel de ${currentContainerShift}px`);
+      
+      // Position en pixels - Placer le panel à DROITE du container en tenant compte de sa position réelle
+      const panelLeft = (gridPos.col * (CONTAINER_SIZE + CONTAINER_SPACING)) + CONTAINER_SIZE + CONTAINER_SPACING + currentContainerShift;
+      
+      // Pour le panel, placement vertical pour éviter la coupure et permettre de voir tout le contenu
+      // Ne pas positionner trop haut pour éviter les coupures
+      const panelTop = gridPos.row * (CONTAINER_SIZE + CONTAINER_SPACING) - 64;
+      
+      console.log(`Position calculée pour panel du container ${containerId}:`, {
+        gridPos,
+        panelLeft,
+        panelTop
+      });
+      
+      // Ajouter le panel à la map avec l'ID du container comme clé
+      newPanels.set(containerId, {
+        columnIndex: gridPos.col, // Pour référence
+        position: {
+          left: panelLeft,
+          top: panelTop > 0 ? panelTop : 0 // Éviter les positions négatives
+        }
+      });
+      
+      // IMPORTANT: Recalculer la position de TOUS les panels actifs
+      // pour s'assurer qu'ils sont correctement décalés les uns par rapport aux autres
+      const allPanelIds = Array.from(newPanels.keys());
+      
+      // Trier les panels par position de colonne (gauche à droite)
+      const sortedPanelInfos = allPanelIds
+        .map(id => {
+          const container = containers.find(c => c.id === id);
+          if (!container || !container.position) return null;
+          
+          const pos = getGridPosition(container);
+          return { id, col: pos.col, row: pos.row };
+        })
+        .filter(info => info !== null)
+        .sort((a, b) => a!.col - b!.col);
+      
+      console.log("Panels triés par colonne:", sortedPanelInfos);
+      
+      // SOLUTION OPTIMISÉE POUR LE POSITIONNEMENT DES PANELS
+      // On place chaque panel de façon à éviter les chevauchements
+      
+      // Initialisation de la position de référence du dernier panel
+      let lastPanelEndPosition = 0;
+      
+      // Trier les panels par ordre de colonne croissant (de gauche à droite)
+      sortedPanelInfos.forEach((panelInfo, index) => {
+        if (!panelInfo) return;
+        
+        // Récupérer le container correspondant
+        const container = containers.find(c => c.id === panelInfo.id);
+        if (!container || !container.position) return;
+        
+        // Position du container dans la grille
+        const pos = getGridPosition(container);
+        
+        // Position de base du container (en pixels)
+        const containerLeft = pos.col * (CONTAINER_SIZE + CONTAINER_SPACING);
+        
+        // Position idéale pour le panel (juste à droite du container)
+        const idealPanelLeft = containerLeft + CONTAINER_SIZE + CONTAINER_SPACING;
+        
+        // Position finale du panel
+        let finalLeft = idealPanelLeft;
+        
+        // Si ce n'est pas le premier panel, vérifier s'il y aurait chevauchement
+        if (lastPanelEndPosition > 0) {
+          // Si le panel idéal commencerait avant la fin du précédent + espacement
+          if (idealPanelLeft < lastPanelEndPosition + 20) {
+            // Placer ce panel juste après le précédent (avec espacement)
+            finalLeft = lastPanelEndPosition + 20;
+            console.log(`Panel ${panelInfo.id} déplacé pour éviter chevauchement: 
+              idéal=${idealPanelLeft}px → ajusté=${finalLeft}px`);
+          }
+        }
+        
+        // Pour le débogage et la vérification
+        console.log(`Panel ${panelInfo.id} (col=${pos.col}): 
+          containerLeft=${containerLeft}px, 
+          idealPanelLeft=${idealPanelLeft}px, 
+          finalLeft=${finalLeft}px, 
+          lastPanelEnd=${lastPanelEndPosition}px`);
+        
+        // Mettre à jour la position de référence pour le prochain panel
+        // (la fin de ce panel = sa position gauche + sa largeur)
+        lastPanelEndPosition = finalLeft + PANEL_WIDTH;
+        
+        // Mettre à jour la position dans newPanels
+        const existingPanelInfo = newPanels.get(panelInfo.id);
+        if (existingPanelInfo) {
+          newPanels.set(panelInfo.id, {
+            ...existingPanelInfo,
+            position: {
+              ...existingPanelInfo.position,
+              left: finalLeft
+            }
+          });
+        }
+      });
+      
+      // Nous n'avons plus besoin de calculer les décalages ici
+      // Ils seront calculés directement lors du rendu
+      console.log("Panel ajouté pour le container", containerId);
+      
+      // Vérifier si le panel sera visible dans la vue actuelle
+      const viewportWidth = window.innerWidth;
+      
+      // Position du panel dans la vue
+      const panelVisibleLeftPos = panelLeft + position.x;
+      const panelVisibleRightPos = panelVisibleLeftPos + PANEL_WIDTH;
+      
+      console.log("Visibilité du panel:", {
+        viewport: viewportWidth,
+        panelLeft: panelVisibleLeftPos,
+        panelRight: panelVisibleRightPos,
+        isFullyVisible: panelVisibleLeftPos >= 0 && panelVisibleRightPos <= viewportWidth
+      });
+      
+      // Si le panel n'est pas entièrement visible dans la vue, décaler la grille
+      if (panelVisibleRightPos > viewportWidth) {
+        // Décalage nécessaire pour voir le panel entier
+        const requiredShift = panelVisibleRightPos - viewportWidth + 20; // 20px de marge
+        
+        // Appliquer le décalage uniquement horizontal
+        console.log("Décalage de la grille vers la gauche:", requiredShift);
+        
+        setPosition(prevPosition => ({
+          x: prevPosition.x - requiredShift,
+          y: prevPosition.y // Garder la même position verticale
+        }));
+      }
+      
+      return newPanels;
+    });
+  };
+  
+  // Gestion de la fermeture d'un panel
+  const handlePanelClose = (containerId: number) => {
+    console.log("handlePanelClose appelé pour le container:", containerId);
+    
+    // Supprimer le panel et recalculer les positions des panels restants
+    setActivePanels(prevPanels => {
+      // Liste des panels avant fermeture
+      console.log("Panels avant fermeture:", Array.from(prevPanels.keys()));
+      
+      // Filtrer les panels pour exclure celui qu'on ferme
+      const remainingPanelIds = Array.from(prevPanels.keys())
+        .filter(id => id !== containerId);
+      
+      // Si aucun panel ne reste, retourner une Map vide
+      if (remainingPanelIds.length === 0) {
+        return new Map();
+      }
+      
+      // Reconstruire les panels avec de nouvelles positions calculées
+      const newPanels = new Map();
+      
+      // Trier les panels par position dans la grille (gauche à droite)
+      const sortedPanelData = remainingPanelIds
+        .map(id => {
+          const container = containers.find(c => c.id === id);
+          if (!container || !container.position) return null;
+          const pos = getGridPosition(container);
+          return { id, col: pos.col, row: pos.row };
+        })
+        .filter(item => item !== null)
+        .sort((a, b) => a!.col - b!.col);
+      
+      // Recalculer la position de chaque panel restant
+      sortedPanelData.forEach((panelInfo, index) => {
+        if (!panelInfo) return;
+        
+        const container = containers.find(c => c.id === panelInfo.id);
+        if (!container || !container.position) return;
+        
+        const gridPos = getGridPosition(container);
+        
+        // Position de base du container (sans décalage)
+        const containerLeft = gridPos.col * (CONTAINER_SIZE + CONTAINER_SPACING);
+        
+        // Position de base pour le panel (juste à droite du container)
+        const panelBaseLeft = containerLeft + CONTAINER_SIZE + CONTAINER_SPACING;
+        
+        // Position finale avec décalage cumulatif basé sur l'index
+        // Chaque panel suivant est décalé vers la droite
+        const finalLeft = panelBaseLeft + (index * (PANEL_WIDTH + 20));
+        
+        // Position verticale pour éviter les coupures
+        const panelTop = Math.max(0, gridPos.row * (CONTAINER_SIZE + CONTAINER_SPACING) - 64);
+        
+        // Récupérer les données du panel précédent
+        const prevPanelInfo = prevPanels.get(panelInfo.id);
+        
+        // Ajouter le panel avec sa nouvelle position
+        newPanels.set(panelInfo.id, {
+          columnIndex: gridPos.col,
+          // Conserver les autres infos si elles existent
+          ...prevPanelInfo,
+          position: {
+            left: finalLeft,
+            top: panelTop
+          }
+        });
+      });
+      
+      console.log("Panels réorganisés après fermeture:", Array.from(newPanels.keys()));
+      return newPanels;
+    });
+    
+    // Utiliser setTimeout pour s'assurer que la mise à jour du state a bien eu lieu avant la synchronisation
+    setTimeout(() => {
+      // Appeler la fonction de synchronisation complète
+      synchronizePanels();
+    }, 0);
+    
+    console.log("Panel fermé pour le container", containerId);
+  };
+
+  // Style pour cacher le curseur natif
+  const cursorStyle = { cursor: 'none' };
+  
+  // Taille totale de la grille
+  const gridWidth = GRID_SIZE * (CONTAINER_SIZE + CONTAINER_SPACING);
+  const gridHeight = GRID_SIZE * (CONTAINER_SIZE + CONTAINER_SPACING);
+  
+  // Convertir la Map de panels en tableau pour pouvoir les render
+  const panelsArray = Array.from(activePanels.values());
+
+  return (
+    <div className="relative overflow-hidden mx-auto custom-cursor-area" style={{ width: '100%', height: '100vh' }}>
+      {/* Indicateur de mode debug */}
+      {debugMode && (
+        <div className="fixed top-4 left-4 bg-black bg-opacity-70 text-white px-4 py-2 rounded-md text-sm z-50">
+          <div>Mode Debug Activé (touche 'D' pour désactiver)</div>
+          <div>Touche 'A' pour ajouter un nouveau container au centre</div>
+        </div>
+      )}
+      
+      {/* Curseur polymorphe personnalisé */}
+      <CustomCursor 
+        cursorType={cursorType}
+        position={cursorPosition}
+      />
+      
+      {/* Grille de containers */}
+      <div 
+        ref={gridRef}
+        className="absolute"
+        style={{ 
+          width: `${gridWidth}px`,
+          height: `${gridHeight}px`,
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          ...cursorStyle
+        }}
+        data-cursor-type={CursorType.GRAB}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+      >
+        {/* Indicateur du centre de la spirale (pour comprendre l'insertion) */}
+        {debugMode && (
+          <div 
+            className="absolute z-10 w-4 h-4 rounded-full bg-purple-500 opacity-50"
+            style={{
+              left: GRID_CENTER.x * (CONTAINER_SIZE + CONTAINER_SPACING) + CONTAINER_SIZE/2 - 8,
+              top: GRID_CENTER.y * (CONTAINER_SIZE + CONTAINER_SPACING) + CONTAINER_SIZE/2 - 8,
+            }}
+          />
+        )}
+        {/* Containers */}
+        {containers.map((container) => {
+          // Pour les conteneurs inactifs
+          if (container.type === ContainerType.INACTIVE) {
+            // Toujours afficher les cellules inactives (en blanc)
+            const { row, col } = getGridPosition(container);
+            const left = col * (CONTAINER_SIZE + CONTAINER_SPACING);
+            const top = row * (CONTAINER_SIZE + CONTAINER_SPACING);
+            
+            return (
+              <div 
+                key={`inactive-${container.id}`}
+                className="absolute bg-white border border-gray-200 opacity-100 rounded-sm"
+                data-cursor-type={CursorType.GRAB}
+                style={{
+                  width: CONTAINER_SIZE,
+                  height: CONTAINER_SIZE,
+                  left,
+                  top
+                }}
+              />
+            );
+          }
+          
+          const { row, col } = getGridPosition(container);
+          const shiftDown = shouldShiftDown(container.id);
+          const shiftUp = shouldShiftUp(container.id);
+          // Utiliser l'ID du container au lieu de la colonne pour les décalages horizontaux liés aux panels
+          const shiftRight = getHorizontalShift(container.id);
+          
+          // Position de base avec décalage selon les panels
+          const left = col * (CONTAINER_SIZE + CONTAINER_SPACING) + shiftRight;
+          const top = row * (CONTAINER_SIZE + CONTAINER_SPACING);
+          
+          // Calculer la position finale avec les décalages
+          let finalTop = top - shiftUp + shiftDown;
+          
+          // Si c'est un container ADOPTED ouvert, on le décale vers le haut de sa propre hauteur
+          if (container.state !== ContainerState.CLOSED && container.type === ContainerType.ADOPTED) {
+            finalTop -= 132; // On remonte le container pour qu'il se développe vers le haut (exactement comme FREE)
+          }
+          
+          // Utiliser une clé unique lors du passage de ouvert à fermé pour forcer un remontage
+          // Pour les conteneurs éditoriaux, ajouter l'image éditoriale
+          if (container.type === ContainerType.EDITORIAL) {
+            // Ajouter l'image et le lien pour les conteneurs éditoriaux
+            return (
+              <Container
+                key={`container-${container.id}${container.key ? `-${container.key}` : ''}`}
+                id={container.id}
+                state={container.state}
+                type={container.type}
+                position={{ left, top: finalTop }}
+                onClick={() => toggleContainer(container.id)}
+                showClickZone={container.state === ContainerState.CLOSED}
+                onPanelToggle={(columnIndex) => handlePanelToggle(columnIndex)}
+                debugMode={debugMode}
+                // Propriétés pour les conteneurs éditoriaux - Utilisation statique pour éviter les clignotements
+                editorialImage={container.id % 2 === 0 ? images.editorial : images.editorialAlt}
+                url={container.url}
+                title={container.title}
+              />
+            );
+          } else {
+            // Pour les autres types de conteneurs
+            return (
+              <Container
+                key={`container-${container.id}${container.key ? `-${container.key}` : ''}`}
+                id={container.id}
+                state={container.state}
+                type={container.type}
+                position={{ left, top: finalTop }}
+                onClick={() => toggleContainer(container.id)}
+                showClickZone={container.state === ContainerState.CLOSED}
+                onPanelToggle={(columnIndex) => handlePanelToggle(columnIndex)}
+                debugMode={debugMode}
+              />
+            );
+          }
+        })}
+        
+        {/* Rendu des panels */}
+        {panelsArray.length > 0 && (
+          <div className="panels-container" style={{position: 'relative', zIndex: 1000}}>
+            {/* Fonction auto-exécutée pour le positionnement des panels */}
+            {(() => {
+              // Récupérer les données des panels actifs
+              const panelData = Array.from(activePanels.entries()).map(([containerId, panelInfo]) => {
+                const container = containers.find(c => c.id === containerId);
+                if (!container) return null;
+                
+                const pos = getGridPosition(container);
+                return { containerId, panelInfo, gridPos: pos };
+              }).filter(item => item !== null);
+              
+              // Trier les panels de gauche à droite
+              const sortedPanels = [...panelData].sort((a, b) => a!.gridPos.col - b!.gridPos.col);
+              
+              // Mettre à jour les positions dans activePanels
+              const updatedPositions = new Map(activePanels);
+              
+              sortedPanels.forEach((item, index) => {
+                if (!item) return;
+                
+                const { containerId, panelInfo, gridPos } = item;
+                
+                // Position de base du container
+                const containerLeft = gridPos.col * (CONTAINER_SIZE + CONTAINER_SPACING);
+                
+                // Décalage cumulatif (40px plus large que PANEL_WIDTH pour l'espacement)
+                const offset = index * (PANEL_WIDTH + 40);
+                
+                // Position finale du panel
+                const panelLeft = containerLeft + CONTAINER_SIZE + CONTAINER_SPACING + offset;
+                const panelTop = Math.max(0, gridPos.row * (CONTAINER_SIZE + CONTAINER_SPACING) - 64);
+                
+                // Mettre à jour la position dans la Map
+                updatedPositions.set(containerId, {
+                  ...panelInfo,
+                  position: { left: panelLeft, top: panelTop }
+                });
+              });
+              
+              // Mettre à jour les positions si elles ont changé
+              if (JSON.stringify(Array.from(activePanels)) !== JSON.stringify(Array.from(updatedPositions))) {
+                setTimeout(() => {
+                  setActivePanels(updatedPositions);
+                }, 10);
+              }
+              
+              // Rendu des panels avec leurs positions
+              return sortedPanels.map(item => {
+                if (!item) return null;
+                
+                const { containerId, gridPos } = item;
+                const index = sortedPanels.findIndex(p => p?.containerId === containerId);
+                
+                // Position de base du container
+                const containerLeft = gridPos.col * (CONTAINER_SIZE + CONTAINER_SPACING);
+                
+                // Calculer la position avec décalage pour éviter chevauchement
+                const offset = index * (PANEL_WIDTH + 40);
+                const panelLeft = containerLeft + CONTAINER_SIZE + CONTAINER_SPACING + offset;
+                const panelTop = Math.max(0, gridPos.row * (CONTAINER_SIZE + CONTAINER_SPACING) - 64);
+                
+                return (
+                  <Panel
+                    key={`panel-${containerId}`}
+                    containerId={containerId}
+                    columnIndex={item.panelInfo.columnIndex}
+                    position={{ left: panelLeft, top: panelTop }}
+                    onClose={handlePanelClose}
+                  />
+                );
+              });
+            })()}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

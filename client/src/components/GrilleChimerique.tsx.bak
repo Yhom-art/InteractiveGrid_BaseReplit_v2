@@ -1,0 +1,602 @@
+import { useState, useEffect, useRef, MouseEvent } from "react";
+import { Container } from "@/components/Container";
+import { Panel } from "@/components/Panel";
+import { CustomCursor, CursorType } from "@/components/CustomCursor";
+
+// Les trois états possibles pour un container
+export enum ContainerState {
+  CLOSED = "closed",
+  ADOPT = "adopt",
+  ADOPTED = "adopted",
+  FREE = "free"
+}
+
+// Les types potentiels pour un container (détermine son comportement quand il est ouvert)
+export enum ContainerType {
+  ADOPT = "adopt",
+  ADOPTED = "adopted",
+  FREE = "free",
+  INACTIVE = "inactive" // Containers inactifs
+}
+
+interface ContainerData {
+  id: number;
+  state: ContainerState;
+  type: ContainerType;
+}
+
+interface Position {
+  x: number;
+  y: number;
+}
+
+// Interface pour stocker les informations des panels ouverts
+interface PanelInfo {
+  columnIndex: number;
+  position: {
+    left: number;
+    top: number;
+  };
+}
+
+export function GrilleChimerique() {
+  // Configuration de la taille de la grille
+  const GRID_SIZE = 20; // Grille 20x20 = 400 containers
+  const CONTAINER_SIZE = 128; // Taille d'un container
+  const CONTAINER_SPACING = 4; // Espacement entre les containers
+  const PANEL_WIDTH = 388; // Largeur des panels (380px + 2*4px d'espacement)
+  
+  const [containers, setContainers] = useState<ContainerData[]>([]);
+  const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState<Position>({ x: 0, y: 0 });
+  const [cursorPosition, setCursorPosition] = useState<Position>({ x: 0, y: 0 });
+  const [isOverClickZone, setIsOverClickZone] = useState(false);
+  const [cursorType, setCursorType] = useState<CursorType>(CursorType.GRAB);
+  const [hoveredContainer, setHoveredContainer] = useState<ContainerData | null>(null);
+  
+  // Panels actifs par colonne (un seul panel par colonne)
+  const [activePanels, setActivePanels] = useState<Map<number, PanelInfo>>(new Map());
+  
+  // Mode debug pour visualiser les zones d'interaction
+  const [debugMode, setDebugMode] = useState(false);
+  
+  const gridRef = useRef<HTMLDivElement>(null);
+  
+  // Activer/désactiver le mode debug avec la touche 'D'
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Touche 'D' pour activer/désactiver le mode debug
+      if (e.key.toLowerCase() === 'd') {
+        setDebugMode(prev => !prev);
+        console.log(`Mode debug ${!debugMode ? 'activé' : 'désactivé'}`);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [debugMode]);
+  
+  // Initialize containers with random types
+  useEffect(() => {
+    const types = [
+      ContainerType.ADOPT, 
+      ContainerType.ADOPTED, 
+      ContainerType.FREE, 
+      ContainerType.INACTIVE
+    ];
+    
+    // Distribue les types de manière aléatoire, avec ~25% de chaque type
+    const initialContainers = Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, id) => {
+      const randomTypeIndex = Math.floor(Math.random() * types.length);
+      return {
+        id,
+        state: ContainerState.CLOSED,
+        type: types[randomTypeIndex]
+      };
+    });
+    
+    setContainers(initialContainers);
+  }, []);
+
+  // Handle toggling container state
+  const toggleContainer = (id: number) => {
+    setContainers(prevContainers => {
+      return prevContainers.map(container => {
+        if (container.id === id) {
+          // Si le container est inactif, ne rien faire
+          if (container.type === ContainerType.INACTIVE) {
+            return container;
+          }
+          
+          // Si le container est fermé, l'ouvrir selon son type
+          if (container.state === ContainerState.CLOSED) {
+            // Définir l'état en fonction du type
+            let newState = ContainerState.CLOSED;
+            if (container.type === ContainerType.ADOPT) {
+              newState = ContainerState.ADOPT;
+            } else if (container.type === ContainerType.ADOPTED) {
+              newState = ContainerState.ADOPTED;
+            } else if (container.type === ContainerType.FREE) {
+              newState = ContainerState.FREE;
+            }
+            
+            return {
+              ...container,
+              state: newState
+            };
+          } else {
+            // Si le container est ouvert, le fermer
+            return {
+              ...container,
+              state: ContainerState.CLOSED
+            };
+          }
+        }
+        return container;
+      });
+    });
+  };
+
+  // Calculer la position dans la grille
+  const getGridPosition = (id: number) => {
+    const row = Math.floor(id / GRID_SIZE);
+    const col = id % GRID_SIZE;
+    return { row, col };
+  };
+
+  // Calculer le décalage horizontal pour les colonnes à droite des panels
+  const getHorizontalShift = (columnIndex: number) => {
+    let shift = 0;
+    
+    // Parcourir tous les panels actifs
+    activePanels.forEach((panel, panelColumnIndex) => {
+      // Si le panel est dans une colonne à gauche de celle-ci, ajouter son décalage
+      if (panelColumnIndex < columnIndex) {
+        shift += PANEL_WIDTH;
+      }
+    });
+    
+    return shift;
+  };
+
+  // Déterminer si un container doit être décalé vers le bas
+  const shouldShiftDown = (id: number) => {
+    const { row, col } = getGridPosition(id);
+    let shift = 0;
+
+    // Check all containers in the same column above this one
+    for (let r = 0; r < row; r++) {
+      const upperContainerId = r * GRID_SIZE + col;
+      const upperContainer = containers[upperContainerId];
+      
+      if (!upperContainer) continue;
+
+      // Si le container supérieur est de type FREE, il pousse vers le bas de +132px exactement
+      if (upperContainer.state === ContainerState.FREE) {
+        shift += 132; // Exactement 132px de décalage (260/2)
+      }
+      // Si le container supérieur est de type ADOPT, il pousse vers le bas de +64px exactement
+      else if (upperContainer.state === ContainerState.ADOPT) {
+        shift += 64; // Exactement 64px de décalage (192/2 - 128/2)
+      }
+    }
+
+    return shift;
+  };
+
+  // Déterminer si un container doit être décalé vers le haut
+  const shouldShiftUp = (id: number) => {
+    const { row, col } = getGridPosition(id);
+    let shift = 0;
+
+    // Check all containers in the same column below this one
+    for (let r = row + 1; r < GRID_SIZE; r++) {
+      const lowerContainerId = r * GRID_SIZE + col;
+      const lowerContainer = containers[lowerContainerId];
+      
+      if (!lowerContainer) continue;
+
+      // Si le container inférieur est de type ADOPTED, il pousse vers le haut de -132px exactement
+      if (lowerContainer.state === ContainerState.ADOPTED) {
+        shift += 132; // Exactement 132px de décalage pour aligner avec précision
+      }
+    }
+
+    return shift;
+  };
+  
+  // Gestion du déplacement de la grille (drag)
+  const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
+    // Ne déclencher le drag que si on n'est pas sur une zone de clic
+    if (!isOverClickZone) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    }
+  };
+  
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    // Mise à jour de la position du curseur pour le style
+    setCursorPosition({ x: e.clientX, y: e.clientY });
+    
+    // Gestion du déplacement de la grille
+    if (isDragging) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      setPosition({ x: newX, y: newY });
+    }
+    
+    // Logique différente selon l'état du container survolé
+    if (hoveredContainer && hoveredContainer.state === ContainerState.CLOSED) {
+      // Pour les containers FERMÉS, utiliser checkIfOverClickZone
+      // Cette méthode détecte la position relative dans le container et définit le bon curseur
+      checkIfOverClickZone(e);
+    } else {
+      // Pour les containers OUVERTS, utiliser les attributs data-cursor-type
+      const element = e.target as HTMLElement;
+      const cursorTypeAttribute = element.getAttribute('data-cursor-type');
+      
+      if (cursorTypeAttribute) {
+        // Si l'élément a un attribut data-cursor-type, utiliser ce type
+        setCursorType(cursorTypeAttribute as CursorType);
+      } else {
+        // Sinon, utiliser GRAB comme fallback
+        setCursorType(CursorType.GRAB);
+      }
+    }
+  };
+  
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+  
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+  
+  // Vérifie la position du curseur pour déterminer les zones et le type de curseur
+  const checkIfOverClickZone = (e: MouseEvent<HTMLDivElement>) => {
+    if (!gridRef.current) return;
+    
+    // Position relative du curseur dans la grille
+    const gridRect = gridRef.current.getBoundingClientRect();
+    const relX = e.clientX - gridRect.left - position.x;
+    const relY = e.clientY - gridRect.top - position.y;
+    
+    // Calculer dans quel container se trouve le curseur
+    const containerWidth = CONTAINER_SIZE + CONTAINER_SPACING;
+    const containerHeight = CONTAINER_SIZE + CONTAINER_SPACING;
+    const col = Math.floor(relX / containerWidth);
+    const row = Math.floor(relY / containerHeight);
+    
+    // Position relative dans le container
+    const relContainerX = relX - (col * containerWidth);
+    const relContainerY = relY - (row * containerHeight);
+    
+    // Centre du container
+    const centerX = CONTAINER_SIZE / 2;
+    const centerY = CONTAINER_SIZE / 2;
+    
+    // DÉFINITION UNIFIÉE DES ZONES POUR TOUS LES CONTAINERS
+    
+    // 1. Zone CLOSE = petit carré 25×25px au centre de la partie image (Layer-PIC)
+    // Centre du bloc image = (64, 64)
+    const isInClickZone = 
+      relContainerX >= 51.5 && relContainerX <= 76.5 && // Centre X +/- 12.5px
+      relContainerY >= 51.5 && relContainerY <= 76.5;   // Centre Y +/- 12.5px
+    
+    setIsOverClickZone(isInClickZone);
+    
+    // Vérifier si les coordonnées sont valides (dans la grille)
+    if (col >= 0 && col < GRID_SIZE && row >= 0 && row < GRID_SIZE) {
+      const containerIndex = row * GRID_SIZE + col;
+      const currentContainer = containers[containerIndex];
+      
+      // Stocker le container survolé
+      setHoveredContainer(currentContainer);
+      
+      // 2. Zone pill-like = uniquement les 32px du bas de la partie card visible
+      // PROBLÈME: relContainerY est limité à 0-128px car il est calculé par rapport au container original
+      
+      // SOLUTION: Pour les containers ouverts, nous savons que:
+      // - La partie card est visible uniquement si le container est ouvert
+      // - La partie card commence à Y=128px dans la grille réelle
+      
+      // Donc pour les containers ouverts, si le curseur est dans le container standard (0-128px)
+      // ET qu'il est dans le quart inférieur, nous pouvons vérifier la partie card supérieure
+      
+      // Zone pill-like pour ADOPTED et FREE = les 32px visibles du bas (Y=223-255)
+      // Zone pill-like pour ADOPT = les 32px visibles du bas (Y=160-192)
+      
+      let isInBottomActionZone = false;
+      
+      if (currentContainer && currentContainer.state !== ContainerState.CLOSED) {
+          // Le container est ouvert, vérifier si on est dans les 32px du bas
+          
+          if (currentContainer.type === ContainerType.ADOPT) {
+              // Pour ADOPT: zone pill-like = Y=160-192 (32 derniers pixels du card de 64px)
+              if (relContainerY >= 96 && relContainerY < 128) {
+                  // Si on est dans le quart inférieur du container standard
+                  isInBottomActionZone = true;
+              }
+          } 
+          else if (currentContainer.type === ContainerType.ADOPTED || 
+                  currentContainer.type === ContainerType.FREE) {
+              // Pour ADOPTED/FREE: zone pill-like = Y=224-256 (32 derniers pixels du card de 128px)
+              if (relContainerY >= 96 && relContainerY < 128) {
+                  // Si on est dans le quart inférieur du container standard
+                  isInBottomActionZone = true;
+              }
+          }
+      }
+      
+      // Déterminer le type de curseur en fonction du contexte
+      if (currentContainer) {
+        // Pour les containers FERMÉS
+        if (currentContainer.state === ContainerState.CLOSED) {
+          // Dans la zone centrale de clic (25x25px)
+          if (isInClickZone) {
+            // Afficher un curseur spécifique selon le type du container
+            if (currentContainer.type === ContainerType.ADOPT) {
+              setCursorType(CursorType.ADOPT);
+            } 
+            else if (currentContainer.type === ContainerType.ADOPTED) {
+              setCursorType(CursorType.MEET);
+            } 
+            else if (currentContainer.type === ContainerType.FREE) {
+              setCursorType(CursorType.KNOK);
+            }
+            else {
+              setCursorType(CursorType.GRAB); // Fallback pour les autres types
+            }
+          } else {
+            // Partout ailleurs sur le container fermé, utiliser GRAB
+            setCursorType(CursorType.GRAB);
+          }
+        } 
+        // Pour les containers OUVERTS - logique avec valeurs absolues
+        else {
+          // Type de container ADOPTED = curseur spécifique
+          if (currentContainer.type === ContainerType.ADOPTED) {
+            // Priorité 1: Zone centrale = CLOSE (petit carré 25×25px)
+            if (isInClickZone) {
+              setCursorType(CursorType.CLOSE);
+            }
+            // Priorité 2: Zone basse = MEET_PILL (quart inférieur)
+            else if (isInBottomActionZone) {
+              setCursorType(CursorType.MEET_PILL);
+            }
+            // Priorité 3: Partout ailleurs = GRAB
+            else {
+              setCursorType(CursorType.GRAB);
+            }
+          }
+          // Type de container ADOPT = curseur spécifique
+          else if (currentContainer.type === ContainerType.ADOPT) {
+            // Priorité 1: Zone centrale = CLOSE (petit carré 25×25px)
+            if (isInClickZone) {
+              setCursorType(CursorType.CLOSE);
+            }
+            // Priorité 2: Zone basse = ADOPT_PILL (quart inférieur)
+            else if (isInBottomActionZone) {
+              setCursorType(CursorType.ADOPT_PILL);
+            }
+            // Priorité 3: Partout ailleurs = GRAB
+            else {
+              setCursorType(CursorType.GRAB);
+            }
+          }
+          // Type de container FREE = curseur spécifique  
+          else if (currentContainer.type === ContainerType.FREE) {
+            // Priorité 1: Zone centrale = CLOSE (petit carré 25×25px)
+            if (isInClickZone) {
+              setCursorType(CursorType.CLOSE);
+            }
+            // Priorité 2: Zone basse = KNOK_PILL (quart inférieur)
+            else if (isInBottomActionZone) {
+              setCursorType(CursorType.KNOK_PILL);
+            }
+            // Priorité 3: Partout ailleurs = GRAB
+            else {
+              setCursorType(CursorType.GRAB);
+            }
+          }
+          // Fallback pour tout autre type
+          else {
+            // Zone centrale = CLOSE
+            if (isInClickZone) {
+              setCursorType(CursorType.CLOSE);
+            }
+            // Partout ailleurs = GRAB
+            else {
+              setCursorType(CursorType.GRAB);
+            }
+          }
+        }
+      } else {
+        // Curseur par défaut si pas de container
+        setCursorType(CursorType.GRAB);
+      }
+    } else {
+      // Si en dehors de la grille
+      setIsOverClickZone(false);
+      setHoveredContainer(null);
+      setCursorType(CursorType.GRAB);
+    }
+  };
+  
+  // Gestion de l'ouverture/fermeture des panels
+  const handlePanelToggle = (columnIndex: number) => {
+    setActivePanels(prevPanels => {
+      const newPanels = new Map();
+      
+      // D'abord, calculer tous les décalages basés sur les panels existants AVANT d'ajouter le nouveau
+      const existingPanelColumns = Array.from(prevPanels.keys()).sort((a, b) => a - b);
+      
+      // Créer une fonction pour calculer la position d'un panel en fonction de sa colonne
+      const calculatePanelPosition = (colIndex: number) => {
+        const baseLeftPosition = colIndex * (CONTAINER_SIZE + CONTAINER_SPACING);
+        let shiftRight = 0;
+        
+        // Calculer le décalage en fonction des panels dans les colonnes à gauche
+        existingPanelColumns.forEach(panelColIndex => {
+          if (panelColIndex < colIndex && panelColIndex !== columnIndex) {
+            shiftRight += PANEL_WIDTH;
+          }
+        });
+        
+        // Si on ajoute un nouveau panel et qu'il est à gauche de ce panel
+        if (columnIndex < colIndex && !prevPanels.has(columnIndex)) {
+          shiftRight += PANEL_WIDTH;
+        }
+        
+        return {
+          left: baseLeftPosition + shiftRight + CONTAINER_SIZE + CONTAINER_SPACING,
+          top: 0
+        };
+      };
+      
+      // Recalculer et ajouter les positions de tous les panels existants
+      prevPanels.forEach((panel, panelColIndex) => {
+        // Ne pas réajouter le panel si on va le remplacer par un nouveau panel dans la même colonne
+        if (panelColIndex !== columnIndex) {
+          newPanels.set(panelColIndex, {
+            columnIndex: panelColIndex,
+            position: calculatePanelPosition(panelColIndex)
+          });
+        }
+      });
+      
+      // Ajouter ou remplacer le panel dans la colonne spécifiée
+      newPanels.set(columnIndex, {
+        columnIndex,
+        position: calculatePanelPosition(columnIndex)
+      });
+      
+      return newPanels;
+    });
+  };
+  
+  // Gestion de la fermeture d'un panel
+  const handlePanelClose = (columnIndex: number) => {
+    setActivePanels(prevPanels => {
+      // Créer une nouvelle Map pour les panels mis à jour
+      const newPanels = new Map();
+      
+      // Retirer le panel fermé de la liste des colonnes
+      const remainingPanelColumns = Array.from(prevPanels.keys())
+        .filter(col => col !== columnIndex)
+        .sort((a, b) => a - b);
+      
+      // Recalculer la position de chaque panel restant
+      remainingPanelColumns.forEach(panelColIndex => {
+        const baseLeftPosition = panelColIndex * (CONTAINER_SIZE + CONTAINER_SPACING);
+        let shiftRight = 0;
+        
+        // Calculer le décalage en fonction des panels dans les colonnes à gauche
+        remainingPanelColumns.forEach(leftPanelColIndex => {
+          if (leftPanelColIndex < panelColIndex) {
+            shiftRight += PANEL_WIDTH;
+          }
+        });
+        
+        newPanels.set(panelColIndex, {
+          columnIndex: panelColIndex,
+          position: {
+            left: baseLeftPosition + shiftRight + CONTAINER_SIZE + CONTAINER_SPACING,
+            top: 0
+          }
+        });
+      });
+      
+      return newPanels;
+    });
+  };
+
+  // Style pour cacher le curseur natif
+  const cursorStyle = { cursor: 'none' };
+  
+  // Taille totale de la grille
+  const gridWidth = GRID_SIZE * (CONTAINER_SIZE + CONTAINER_SPACING);
+  const gridHeight = GRID_SIZE * (CONTAINER_SIZE + CONTAINER_SPACING);
+  
+  // Convertir la Map de panels en tableau pour pouvoir les render
+  const panelsArray = Array.from(activePanels.values());
+
+  return (
+    <div className="relative overflow-hidden mx-auto custom-cursor-area" style={{ width: '100%', height: '80vh' }}>
+      {/* Indicateur de mode debug */}
+      {debugMode && (
+        <div className="debug-indicator">
+          Mode Debug Activé (touche 'D' pour désactiver)
+        </div>
+      )}
+      
+      {/* Curseur polymorphe personnalisé */}
+      <CustomCursor 
+        cursorType={cursorType}
+        position={cursorPosition}
+      />
+      
+      {/* Grille de containers */}
+      <div 
+        ref={gridRef}
+        className="absolute"
+        style={{ 
+          width: `${gridWidth}px`,
+          height: `${gridHeight}px`,
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          ...cursorStyle
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+      >
+        {/* Containers */}
+        {containers.map((container) => {
+          const { row, col } = getGridPosition(container.id);
+          const shiftDown = shouldShiftDown(container.id);
+          const shiftUp = shouldShiftUp(container.id);
+          const shiftRight = getHorizontalShift(col);
+          
+          // Position de base
+          const left = col * (CONTAINER_SIZE + CONTAINER_SPACING) + shiftRight;
+          const top = row * (CONTAINER_SIZE + CONTAINER_SPACING);
+          
+          // Calculer la position finale avec les décalages
+          const finalTop = top - shiftUp + shiftDown;
+          
+          return (
+            <Container
+              key={container.id}
+              id={container.id}
+              state={container.state}
+              type={container.type}
+              position={{ left, top: finalTop }}
+              onClick={() => toggleContainer(container.id)}
+              showClickZone={container.state === ContainerState.CLOSED}
+              onPanelToggle={handlePanelToggle}
+              debugMode={debugMode}
+            />
+          );
+        })}
+        
+        {/* Panels */}
+        {panelsArray.map((panel) => (
+          <Panel
+            key={panel.columnIndex}
+            columnIndex={panel.columnIndex}
+            position={{
+              left: panel.position.left,
+              top: panel.position.top
+            }}
+            onClose={handlePanelClose}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
