@@ -1,0 +1,243 @@
+/* Admin Typography & Tags CSS Variables System */
+
+:root {
+  /* Typography Variables */
+  --header-title-size: 24px;
+  --header-title-weight: 700;
+  --header-title-color: #111827;
+  
+  --section-title-size: 18px;
+  --section-title-weight: 600;
+  --section-title-color: #374151;
+  
+  --body-text-size: 14px;
+  --body-text-weight: 400;
+  --body-text-color: #6b7280;
+  
+  /* Tag Variables */
+  --tag-primary-bg: #3b82f6;
+  --tag-primary-text: #ffffff;
+  --tag-primary-size: 11px;
+  --tag-primary-padding: 2px 6px;
+  --tag-primary-radius: 4px;
+  
+  --tag-secondary-bg: #6b7280;
+  --tag-secondary-text: #ffffff;
+  --tag-secondary-size: 10px;
+  --tag-secondary-padding: 1px 4px;
+  --tag-secondary-radius: 3px;
+}
+
+/* Typography Classes */
+.admin-header-title {
+  font-size: var(--header-title-size, 24px);
+  font-weight: var(--header-title-weight, 700);
+  color: var(--header-title-color, #111827);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.admin-section-title {
+  font-size: var(--section-title-size, 18px);
+  font-weight: var(--section-title-weight, 600);
+  color: var(--section-title-color, #374151);
+  line-height: 1.3;
+}
+
+.admin-body-text {
+  font-size: var(--body-text-size, 14px);
+  font-weight: var(--body-text-weight, 400);
+  color: var(--body-text-color, #6b7280);
+  line-height: 1.5;
+}
+
+/* Tag Classes */
+.admin-tag-primary {
+  background-color: var(--tag-primary-bg, #3b82f6);
+  color: var(--tag-primary-text, #ffffff);
+  font-size: var(--tag-primary-size, 11px);
+  padding: var(--tag-primary-padding, 2px 6px);
+  border-radius: var(--tag-primary-radius, 4px);
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+
+.admin-tag-secondary {
+  background-color: var(--tag-secondary-bg, #6b7280);
+  color: var(--tag-secondary-text, #ffffff);
+  font-size: var(--tag-secondary-size, 10px);
+  padding: var(--tag-secondary-padding, 1px 4px);
+  border-radius: var(--tag-secondary-radius, 3px);
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 500;
+  text-transform: lowercase;
+  letter-spacing: 0.3px;
+  display: inline-block;
+}
+
+/* Specific Status Tags */
+.admin-tag-live {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+.admin-tag-new {
+  background-color: #10b981;
+  color: #ffffff;
+}
+
+.admin-tag-beta {
+  background-color: #f59e0b;
+  color: #ffffff;
+}
+
+.admin-tag-draft {
+  background-color: #6b7280;
+  color: #ffffff;
+}
+
+.admin-tag-v3 {
+  background-color: #8b5cf6;
+  color: #ffffff;
+}
+
+/* Dynamic Elements CSS System */
+.admin-dynamic-data {
+  position: relative;
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.admin-programmatic {
+  position: relative;
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.admin-external-source {
+  position: relative;
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.admin-real-time {
+  position: relative;
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+/* Debug Mode Active - Dynamic Elements Visualization */
+.debug-mode .admin-dynamic-data {
+  border-color: #06b6d4;
+  background-color: rgba(6, 182, 212, 0.05);
+}
+
+.debug-mode .admin-programmatic {
+  border-color: #14b8a6;
+  background-color: rgba(20, 184, 166, 0.05);
+}
+
+.debug-mode .admin-external-source {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.debug-mode .admin-real-time {
+  border-color: #0ea5e9;
+  background-color: rgba(14, 165, 233, 0.05);
+}
+
+/* Debug Mode Tooltips */
+.debug-mode .admin-dynamic-data::after {
+  content: "API Data";
+  position: absolute;
+  top: -25px;
+  left: 0;
+  background: #06b6d4;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.debug-mode .admin-programmatic::after {
+  content: "Calculated";
+  position: absolute;
+  top: -25px;
+  left: 0;
+  background: #14b8a6;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.debug-mode .admin-external-source::after {
+  content: "External";
+  position: absolute;
+  top: -25px;
+  left: 0;
+  background: #10b981;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.debug-mode .admin-real-time::after {
+  content: "Real-time";
+  position: absolute;
+  top: -25px;
+  left: 0;
+  background: #0ea5e9;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Show tooltips on hover in debug mode */
+.debug-mode .admin-dynamic-data:hover::after,
+.debug-mode .admin-programmatic:hover::after,
+.debug-mode .admin-external-source:hover::after,
+.debug-mode .admin-real-time:hover::after {
+  opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .admin-header-title {
+    font-size: calc(var(--header-title-size, 24px) * 0.85);
+  }
+  
+  .admin-section-title {
+    font-size: calc(var(--section-title-size, 18px) * 0.9);
+  }
+}
